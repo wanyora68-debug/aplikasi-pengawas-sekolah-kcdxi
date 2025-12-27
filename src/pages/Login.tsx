@@ -52,11 +52,16 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <LogIn className="w-8 h-8 text-white" />
+        <div className="text-center space-y-3">
+          {/* Logo Cabang Dinas Pendidikan Wilayah XI */}
+          <div className="mx-auto w-20 h-20 mb-4 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
+            <div className="text-center">
+              <div className="text-white font-bold text-lg">XI</div>
+              <div className="text-white text-xs">CADISDIK</div>
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Jurnal Pengawas Sekolah</h1>
+          <h2 className="text-lg font-semibold text-blue-600">Cabang Dinas Pendidikan Wilayah XI</h2>
           <p className="text-gray-600">Masuk ke akun Anda untuk melanjutkan</p>
         </div>
 
@@ -153,7 +158,6 @@ const Login = () => {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-500 space-y-1">
-          <p>© 2024 Jurnal Pengawas Sekolah. Semua hak dilindungi.</p>
           <p className="text-xs">designed by @w.yogaswara ps smk kcdxi 2025</p>
         </div>
       </div>
