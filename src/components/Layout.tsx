@@ -59,12 +59,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const adminNavItems = [
     { path: "/admin", icon: Shield, label: "Admin Dashboard" },
     { path: "/admin/users", icon: Users, label: "Kelola Pengawas" },
-    { path: "/admin/reports", icon: BarChart3, label: "Laporan Admin" },
     { path: "/dashboard", icon: Home, label: "Dashboard Pengawas" },
     { path: "/activities", icon: ClipboardList, label: "Aktivitas" },
     { path: "/supervision", icon: Eye, label: "Supervisi" },
     { path: "/schools", icon: School, label: "Sekolah" },
     { path: "/tasks", icon: FileText, label: "Tugas Tambahan" },
+    { path: "/reports", icon: BarChart3, label: "Laporan" },
     { path: "/settings", icon: SettingsIcon, label: "Pengaturan" },
     { path: "/profile", icon: User, label: "Profil" },
   ];
@@ -78,7 +78,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Admin Panel
           </div>
-          {adminNavItems.slice(0, 3).map((item) => (
+          {adminNavItems.slice(0, 2).map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -99,7 +99,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
       
-      {(currentUser?.role === 'admin' ? adminNavItems.slice(3) : userNavItems).map((item) => (
+      {(currentUser?.role === 'admin' ? adminNavItems.slice(2) : userNavItems).map((item) => (
         <Link
           key={item.path}
           to={item.path}
