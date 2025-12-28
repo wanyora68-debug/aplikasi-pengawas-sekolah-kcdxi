@@ -322,7 +322,7 @@ const AdminDashboard = () => {
               <p>${activity.notes || '-'}</p>
             </div>
             <div style="margin-top: 50px; text-align: right;">
-              <p>Jakarta, ${new Date().toLocaleDateString('id-ID')}</p>
+              <p>Garut, ${new Date().toLocaleDateString('id-ID')}</p>
               <p>Administrator</p>
             </div>
             <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #666;">
@@ -363,7 +363,7 @@ const AdminDashboard = () => {
               <p>${supervision.notes || '-'}</p>
             </div>
             <div style="margin-top: 50px; text-align: right;">
-              <p>Jakarta, ${new Date().toLocaleDateString('id-ID')}</p>
+              <p>Garut, ${new Date().toLocaleDateString('id-ID')}</p>
               <p>Administrator</p>
             </div>
             <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #666;">

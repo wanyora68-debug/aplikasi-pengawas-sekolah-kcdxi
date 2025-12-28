@@ -58,7 +58,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   // Navigation items for admin users
   const adminNavItems = [
     { path: "/admin", icon: Shield, label: "Admin Dashboard" },
-    { path: "/admin/users", icon: Users, label: "Kelola Pengawas" },
     { path: "/dashboard", icon: Home, label: "Dashboard Pengawas" },
     { path: "/activities", icon: ClipboardList, label: "Aktivitas" },
     { path: "/supervision", icon: Eye, label: "Supervisi" },
@@ -78,7 +77,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Admin Panel
           </div>
-          {adminNavItems.slice(0, 2).map((item) => (
+          {adminNavItems.slice(0, 1).map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -99,7 +98,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
       
-      {(currentUser?.role === 'admin' ? adminNavItems.slice(2) : userNavItems).map((item) => (
+      {(currentUser?.role === 'admin' ? adminNavItems.slice(1) : userNavItems).map((item) => (
         <Link
           key={item.path}
           to={item.path}

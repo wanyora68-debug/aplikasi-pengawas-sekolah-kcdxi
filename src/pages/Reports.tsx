@@ -475,7 +475,7 @@ const Reports = () => {
                 <div class="section page-break">
                   <h3 style="color: #007bff; margin-bottom: 15px;">BUKTI KEGIATAN (DOKUMENTASI FOTO)</h3>
                   <div class="photo-grid">
-                    ${allPhotos.slice(0, 12).map((photo, index) => `
+                    ${allPhotos.slice(0, 6).map((photo, index) => `
                       <div class="photo-item">
                         <img src="${photo}" alt="Foto ${index + 1}" />
                         <div class="photo-caption">Foto Kegiatan ${index + 1}</div>
@@ -486,7 +486,7 @@ const Reports = () => {
               ` : ''}
 
               <div class="signature-section">
-                <p>Jakarta, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <p>Garut, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 <p>Pengawas Sekolah,</p>
                 <br><br><br>
                 <p><strong>${user.full_name || user.email}</strong></p>

@@ -43,7 +43,6 @@ const App = () => {
               <Route path="/profile" element={<Profile />} />
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<AdminDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
