@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "@/lib/localStorage";
+import { auth } from "@/lib/database";
 import { Loader2 } from "lucide-react";
 
 export const AuthGuard = ({ children }: { children: React.ReactNode }) => {

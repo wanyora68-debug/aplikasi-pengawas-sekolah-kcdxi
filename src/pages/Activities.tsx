@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { auth, schools as schoolsDB, activities as activitiesDB, uploadPhoto, School } from "@/lib/localStorage";
+import { auth, schools as schoolsDB, activities as activitiesDB, uploadPhoto, School } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";

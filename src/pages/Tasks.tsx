@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { auth, tasks as tasksDB, uploadPhoto, initializeLocalStorage } from "@/lib/localStorage";
+import { auth, tasks as tasksDB, uploadPhoto, initializeDatabase } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ const Tasks = () => {
   useEffect(() => {
     console.log("=== TASKS COMPONENT MOUNTED ===");
     // Ensure localStorage is initialized
-    initializeLocalStorage();
+    initializeDatabase();
     fetchTasks();
   }, []);
 

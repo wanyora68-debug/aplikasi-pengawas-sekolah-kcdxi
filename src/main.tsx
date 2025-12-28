@@ -1,12 +1,12 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { initializeLocalStorage } from "./lib/localStorage";
+import { initializeDatabase } from "./lib/database";
 
 console.log("Starting React application...");
 
-// Initialize localStorage database
-initializeLocalStorage();
+// Initialize database
+initializeDatabase();
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

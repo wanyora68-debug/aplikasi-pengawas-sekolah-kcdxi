@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { auth, getStatistics } from "@/lib/localStorage";
+import { auth, getStatistics } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

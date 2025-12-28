@@ -1,0 +1,51 @@
+// Database abstraction layer - switch between localStorage and Supabase
+import { auth as localAuth, schools as localSchools, activities as localActivities, tasks as localTasks, profiles as localProfiles, getStatistics as localGetStatistics, uploadPhoto as localUploadPhoto, getData as localGetData } from './localStorage';
+import { auth as supabaseAuth, schools as supabaseSchools, activities as supabaseActivities, tasks as supabaseTasks, profiles as supabaseProfiles, getStatistics as supabaseGetStatistics, uploadPhoto as supabaseUploadPhoto } from './supabase';
+
+// Configuration - set to true to use Supabase, false for localStorage
+const USE_SUPABASE = true;
+
+// For Supabase, we need to implement getData function
+const supabaseGetData = async <T>(key: string): Promise<T[]> => {
+  // This is a compatibility function for localStorage getData
+  // In Supabase, we use specific functions instead
+  console.warn('getData is not recommended with Supabase. Use specific functions instead.');
+  return [];
+};
+
+// Export the appropriate implementation based on configuration
+export const auth = USE_SUPABASE ? supabaseAuth : localAuth;
+export const schools = USE_SUPABASE ? supabaseSchools : localSchools;
+export const activities = USE_SUPABASE ? supabaseActivities : localActivities;
+export const tasks = USE_SUPABASE ? supabaseTasks : localTasks;
+export const profiles = USE_SUPABASE ? supabaseProfiles : localProfiles;
+export const getStatistics = USE_SUPABASE ? supabaseGetStatistics : localGetStatistics;
+export const uploadPhoto = USE_SUPABASE ? supabaseUploadPhoto : localUploadPhoto;
+export const getData = USE_SUPABASE ? supabaseGetData : localGetData;
+
+// Export types
+export type { User, School, Activity, Task } from './supabase';
+
+// Initialize function
+export const initializeDatabase = async () => {
+  if (USE_SUPABASE) {
+    console.log("=== USING SUPABASE DATABASE ===");
+    // Supabase doesn't need initialization like localStorage
+  } else {
+    console.log("=== USING LOCALSTORAGE DATABASE ===");
+    const { initializeLocalStorage } = await import('./localStorage');
+    initializeLocalStorage();
+  }
+};
+
+// Database info
+export const getDatabaseInfo = () => {
+  return {
+    type: USE_SUPABASE ? 'Supabase' : 'localStorage',
+    description: USE_SUPABASE 
+      ? 'Cloud database with real-time sync' 
+      : 'Local browser storage',
+    multiDevice: USE_SUPABASE,
+    persistent: USE_SUPABASE,
+  };
+};

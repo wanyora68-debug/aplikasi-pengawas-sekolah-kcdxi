@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { auth, initializeLocalStorage } from "@/lib/localStorage";
+import { auth, initializeDatabase } from "@/lib/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,8 @@ const Login = () => {
     setError("");
 
     try {
-      // Ensure localStorage is initialized
-      initializeLocalStorage();
+      // Ensure database is initialized
+      initializeDatabase();
       
       const { user, error } = await auth.signIn(email, password);
 
