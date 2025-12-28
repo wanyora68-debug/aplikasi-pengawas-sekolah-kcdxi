@@ -1,6 +1,6 @@
-# E-Kinerja Pengawas Sekolah
+# Aplikasi Pengawas Sekolah KCDXI
 
-Aplikasi web untuk mengelola dan mencatat aktivitas pengawas sekolah di lingkungan Dinas Pendidikan Provinsi Jawa Barat.
+Aplikasi digital untuk memfasilitasi proses refleksi manajerial Kepala Sekolah SMK Cabang Dinas Pendidikan Wilayah XI Provinsi Jawa Barat.
 
 ## 🚀 Fitur Utama
 
@@ -25,8 +25,8 @@ Aplikasi web untuk mengelola dan mencatat aktivitas pengawas sekolah di lingkung
 
 1. Clone repository:
 ```bash
-git clone https://github.com/wawan-yogaswara/e-kinerja-pengawas.git
-cd e-kinerja-pengawas
+git clone https://github.com/wanyora68-debug/aplikasi-pengawas-sekolah-kcdxi.git
+cd aplikasi-pengawas-sekolah-kcdxi
 ```
 
 2. Install dependencies:
@@ -40,6 +40,19 @@ npm run dev
 ```
 
 4. Buka browser dan akses: `http://localhost:8083`
+
+## 🌐 Deployment
+
+Aplikasi ini siap untuk di-deploy ke Vercel:
+
+1. Push code ke GitHub repository
+2. Connect repository ke Vercel
+3. Vercel akan otomatis build dan deploy
+
+### Build Commands
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Install Command**: `npm install`
 
 ## 🔧 Konfigurasi
 
@@ -132,7 +145,7 @@ src/
 
 ## 📄 Lisensi
 
-Project ini dibuat untuk Dinas Pendidikan Provinsi Jawa Barat.
+Project ini dibuat untuk Cabang Dinas Pendidikan Wilayah XI Provinsi Jawa Barat.
 
 ## 👨‍💻 Developer
 
@@ -140,4 +153,4 @@ Project ini dibuat untuk Dinas Pendidikan Provinsi Jawa Barat.
 
 ---
 
-*Aplikasi E-Kinerja Pengawas Sekolah - Dinas Pendidikan Provinsi Jawa Barat*
+*Aplikasi Pengawas Sekolah KCDXI - Cabang Dinas Pendidikan Wilayah XI Provinsi Jawa Barat*
