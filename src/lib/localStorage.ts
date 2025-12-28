@@ -106,7 +106,7 @@ export const initializeLocalStorage = () => {
       nip: '123456789',
       position: 'Pengawas Sekolah',
       pangkat: 'Pembina, IV/a',
-      unit_kerja: 'Dinas Pendidikan Provinsi Jawa Barat',
+      unit_kerja: 'Cabang Dinas Pendidikan Wilayah XI',
       role: 'user',
       created_at: new Date().toISOString(),
     };
@@ -118,7 +118,7 @@ export const initializeLocalStorage = () => {
       nip: '987654321',
       position: 'Administrator',
       pangkat: 'Pembina Utama, IV/e',
-      unit_kerja: 'Dinas Pendidikan Provinsi Jawa Barat',
+      unit_kerja: 'Cabang Dinas Pendidikan Wilayah XI',
       role: 'admin',
       created_at: new Date().toISOString(),
     };
