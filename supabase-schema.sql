@@ -65,6 +65,21 @@ CREATE TABLE public.tasks (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Supervisions table (dedicated supervision table)
+CREATE TABLE public.supervisions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    title VARCHAR NOT NULL,
+    school_id UUID REFERENCES public.schools(id) ON DELETE SET NULL,
+    date DATE NOT NULL,
+    principal_name VARCHAR,
+    notes TEXT NOT NULL,
+    photo_url_1 TEXT,
+    photo_url_2 TEXT,
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Row Level Security (RLS) Policies
 
 -- Enable RLS on all tables
@@ -72,6 +87,7 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.schools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supervisions ENABLE ROW LEVEL SECURITY;
 
 -- Users policies
 CREATE POLICY "Users can view own profile" ON public.users
@@ -122,6 +138,19 @@ CREATE POLICY "Users can update own tasks" ON public.tasks
 CREATE POLICY "Users can delete own tasks" ON public.tasks
     FOR DELETE USING (auth.uid() = user_id);
 
+-- Supervisions policies
+CREATE POLICY "Users can view own supervisions" ON public.supervisions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own supervisions" ON public.supervisions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own supervisions" ON public.supervisions
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own supervisions" ON public.supervisions
+    FOR DELETE USING (auth.uid() = user_id);
+
 -- Functions and Triggers
 
 -- Function to automatically create user profile after auth signup
@@ -162,6 +191,10 @@ CREATE TRIGGER update_tasks_updated_at
     BEFORE UPDATE ON public.tasks
     FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+CREATE TRIGGER update_supervisions_updated_at
+    BEFORE UPDATE ON public.supervisions
+    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 -- Storage bucket for photos (run this in Supabase Storage)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('photos', 'photos', true);
 
@@ -185,6 +218,9 @@ CREATE INDEX idx_activities_date ON public.activities(date);
 CREATE INDEX idx_activities_category ON public.activities(category);
 CREATE INDEX idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX idx_tasks_date ON public.tasks(date);
+CREATE INDEX idx_supervisions_user_id ON public.supervisions(user_id);
+CREATE INDEX idx_supervisions_date ON public.supervisions(date);
+CREATE INDEX idx_supervisions_school_id ON public.supervisions(school_id);
 
 -- Sample data (optional - for testing)
 -- You can uncomment this after setting up your first user
@@ -197,6 +233,7 @@ COMMENT ON TABLE public.users IS 'User profiles extending Supabase auth';
 COMMENT ON TABLE public.schools IS 'Schools managed by supervisors';
 COMMENT ON TABLE public.activities IS 'Supervision activities and accompaniment';
 COMMENT ON TABLE public.tasks IS 'Additional tasks and assignments';
+COMMENT ON TABLE public.supervisions IS 'Dedicated supervision records';
 
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;

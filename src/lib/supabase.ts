@@ -148,6 +148,20 @@ export interface Task {
   updated_at: string;
 }
 
+export interface Supervision {
+  id: string;
+  title: string;
+  school_id?: string;
+  date: string;
+  principal_name?: string;
+  notes: string;
+  photo_url_1?: string;
+  photo_url_2?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Auth functions
 export const auth = {
   signIn: async (email: string, password: string) => {
@@ -665,6 +679,112 @@ export const tasks = {
   },
 };
 
+// Supervisions CRUD
+export const supervisions = {
+  getAll: async (userId: string) => {
+    console.log("=== SUPABASE SUPERVISIONS.GETALL DEBUG ===");
+    console.log("supervisions.getAll called with userId:", userId);
+    
+    try {
+      const { data, error } = await supabase
+        .from('supervisions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error("Supervisions fetch error:", error);
+        return { data: [], error };
+      }
+
+      console.log("Supervisions fetched successfully:", data?.length || 0, "items");
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error("Supervisions fetch error:", error);
+      return { data: [], error: { message: 'Gagal mengambil data supervisi' } };
+    }
+  },
+
+  create: async (supervisionData: Omit<Supervision, 'id' | 'created_at' | 'updated_at'>) => {
+    console.log("=== SUPABASE SUPERVISIONS.CREATE DEBUG ===");
+    console.log("supervisions.create called with data:", supervisionData);
+    
+    try {
+      const { data, error } = await supabase
+        .from('supervisions')
+        .insert([{
+          ...supervisionData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Supervision creation error:", error);
+        return { data: null, error };
+      }
+
+      console.log("Supervision created successfully:", data);
+      return { data, error: null };
+    } catch (error) {
+      console.error("Supervision creation error:", error);
+      return { data: null, error: { message: 'Gagal membuat data supervisi' } };
+    }
+  },
+
+  update: async (id: string, updates: Partial<Supervision>) => {
+    console.log("=== SUPABASE SUPERVISIONS.UPDATE DEBUG ===");
+    console.log("Updating supervision:", id, "with:", updates);
+    
+    try {
+      const { data, error } = await supabase
+        .from('supervisions')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Supervision update error:", error);
+        return { data: null, error };
+      }
+
+      console.log("Supervision updated successfully:", data);
+      return { data, error: null };
+    } catch (error) {
+      console.error("Supervision update error:", error);
+      return { data: null, error: { message: 'Gagal mengupdate data supervisi' } };
+    }
+  },
+
+  delete: async (id: string) => {
+    console.log("=== SUPABASE SUPERVISIONS.DELETE DEBUG ===");
+    console.log("Deleting supervision:", id);
+    
+    try {
+      const { error } = await supabase
+        .from('supervisions')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error("Supervision deletion error:", error);
+        return { error };
+      }
+
+      console.log("Supervision deleted successfully");
+      return { error: null };
+    } catch (error) {
+      console.error("Supervision deletion error:", error);
+      return { error: { message: 'Gagal menghapus data supervisi' } };
+    }
+  },
+};
+
 // Profiles CRUD
 export const profiles = {
   get: async (userId: string) => {
@@ -748,10 +868,11 @@ export const uploadPhoto = async (file: File, bucket: string = 'photos'): Promis
 // Statistics
 export const getStatistics = async (userId: string) => {
   try {
-    const [activitiesRes, schoolsRes, tasksRes] = await Promise.all([
+    const [activitiesRes, schoolsRes, tasksRes, supervisionsRes] = await Promise.all([
       activities.getAll(userId),
       schools.getAll(userId),
       tasks.getAll(userId),
+      supervisions.getAll(userId),
     ]);
 
     const currentMonth = new Date().getMonth();
@@ -762,6 +883,11 @@ export const getStatistics = async (userId: string) => {
       return activityDate.getMonth() === currentMonth && activityDate.getFullYear() === currentYear;
     }).length || 0;
 
+    const supervisionsThisMonth = supervisionsRes.data?.filter((supervision) => {
+      const supervisionDate = new Date(supervision.date);
+      return supervisionDate.getMonth() === currentMonth && supervisionDate.getFullYear() === currentYear;
+    }).length || 0;
+
     // Monthly breakdown
     const monthlyStats: { [key: string]: number } = {};
     activitiesRes.data?.forEach((activity) => {
@@ -770,11 +896,20 @@ export const getStatistics = async (userId: string) => {
       monthlyStats[monthKey] = (monthlyStats[monthKey] || 0) + 1;
     });
 
+    // Add supervisions to monthly stats
+    supervisionsRes.data?.forEach((supervision) => {
+      const date = new Date(supervision.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthlyStats[monthKey] = (monthlyStats[monthKey] || 0) + 1;
+    });
+
     return {
       totalActivities: activitiesRes.data?.length || 0,
       totalSchools: schoolsRes.data?.length || 0,
       totalTasks: tasksRes.data?.length || 0,
+      totalSupervisions: supervisionsRes.data?.length || 0,
       activitiesThisMonth,
+      supervisionsThisMonth,
       monthlyStats,
     };
   } catch (error) {
@@ -783,7 +918,9 @@ export const getStatistics = async (userId: string) => {
       totalActivities: 0,
       totalSchools: 0,
       totalTasks: 0,
+      totalSupervisions: 0,
       activitiesThisMonth: 0,
+      supervisionsThisMonth: 0,
       monthlyStats: {},
     };
   }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { auth, getData, Activity, School, Task } from "@/lib/database";
+import { auth, activities, schools, tasks, supervisions, getStatistics } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,10 @@ const Reports = () => {
       const { user } = await auth.getUser();
       if (!user) return;
 
+      console.log("=== REPORTS FETCH DEBUG ===");
+      console.log("Fetching report data for user:", user.id);
+      console.log("Report type:", reportType, "Month:", selectedMonth, "Year:", selectedYear);
+
       let startDate: string, endDate: string;
       
       if (reportType === 'monthly') {
@@ -56,30 +60,58 @@ const Reports = () => {
         endDate = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
       }
 
-      // Fetch data from localStorage
-      const allActivities = getData<Activity>('activities').filter(a => a.user_id === user.id);
-      const allSchools = getData<School>('schools').filter(s => s.user_id === user.id);
-      const allTasks = getData<Task>('tasks').filter(t => t.user_id === user.id);
+      console.log("Date range:", startDate, "to", endDate);
+
+      // Fetch data from Supabase
+      const [activitiesRes, supervisionsRes, schoolsRes, tasksRes] = await Promise.all([
+        activities.getAll(user.id),
+        supervisions.getAll(user.id),
+        schools.getAll(user.id),
+        tasks.getAll(user.id),
+      ]);
+
+      if (activitiesRes.error || supervisionsRes.error || schoolsRes.error || tasksRes.error) {
+        throw new Error("Failed to fetch data");
+      }
+
+      const allActivities = activitiesRes.data || [];
+      const allSupervisions = supervisionsRes.data || [];
+      const allSchools = schoolsRes.data || [];
+      const allTasks = tasksRes.data || [];
+
+      console.log("Fetched data:", {
+        activities: allActivities.length,
+        supervisions: allSupervisions.length,
+        schools: allSchools.length,
+        tasks: allTasks.length
+      });
 
       // Filter by date range
-      const activities = allActivities.filter(a => 
-        a.date >= startDate && a.date <= endDate && a.category !== "Supervisi"
+      const filteredActivities = allActivities.filter(a => 
+        a.date >= startDate && a.date <= endDate
       );
       
-      const supervisions = allActivities.filter(a => 
-        a.date >= startDate && a.date <= endDate && a.category === "Supervisi"
+      const filteredSupervisions = allSupervisions.filter(s => 
+        s.date >= startDate && s.date <= endDate
       );
 
-      const tasks = allTasks.filter(t => 
+      const filteredTasks = allTasks.filter(t => 
         t.date >= startDate && t.date <= endDate
       );
+
+      console.log("Filtered data:", {
+        activities: filteredActivities.length,
+        supervisions: filteredSupervisions.length,
+        tasks: filteredTasks.length
+      });
 
       // Process data
       const activitiesByMonth: { [key: string]: number } = {};
       const activitiesByCategory: { [key: string]: number } = {};
       const schoolsWithActivitiesSet = new Set();
 
-      [...activities, ...supervisions].forEach((activity) => {
+      // Process activities
+      filteredActivities.forEach((activity) => {
         const month = new Date(activity.date).toLocaleDateString('id-ID', { 
           year: 'numeric', 
           month: 'long' 
@@ -92,17 +124,45 @@ const Reports = () => {
         }
       });
 
-      setReportData({
-        totalActivities: activities.length,
-        totalSupervisions: supervisions.length,
+      // Process supervisions
+      filteredSupervisions.forEach((supervision) => {
+        const month = new Date(supervision.date).toLocaleDateString('id-ID', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+        activitiesByMonth[month] = (activitiesByMonth[month] || 0) + 1;
+        activitiesByCategory['Supervisi'] = (activitiesByCategory['Supervisi'] || 0) + 1;
+        
+        if (supervision.school_id) {
+          schoolsWithActivitiesSet.add(supervision.school_id);
+        }
+      });
+
+      // Process tasks
+      filteredTasks.forEach((task) => {
+        const month = new Date(task.date).toLocaleDateString('id-ID', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+        activitiesByMonth[month] = (activitiesByMonth[month] || 0) + 1;
+        activitiesByCategory['Tugas Tambahan'] = (activitiesByCategory['Tugas Tambahan'] || 0) + 1;
+      });
+
+      const reportData = {
+        totalActivities: filteredActivities.length,
+        totalSupervisions: filteredSupervisions.length,
         totalSchools: allSchools.length,
-        totalTasks: tasks.length,
+        totalTasks: filteredTasks.length,
         activitiesByMonth,
         activitiesByCategory,
         schoolsWithActivities: schoolsWithActivitiesSet.size,
-      });
+      };
+
+      console.log("Final report data:", reportData);
+      setReportData(reportData);
 
     } catch (error: any) {
+      console.error("Report fetch error:", error);
       toast.error("Gagal memuat data laporan");
     } finally {
       setLoading(false);
@@ -114,11 +174,13 @@ const Reports = () => {
       const { user } = await auth.getUser();
       if (!user) return;
 
+      console.log("=== GENERATING REPORT ===");
+
       const periodText = reportType === 'monthly' 
         ? `${new Date(selectedYear, selectedMonth - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
         : `Tahun ${selectedYear}`;
 
-      // Get all activities with photos for the period
+      // Get date range
       let startDate, endDate;
       if (reportType === 'monthly') {
         startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString().split('T')[0];
@@ -128,30 +190,54 @@ const Reports = () => {
         endDate = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
       }
 
-      const allActivities = getData<Activity>('activities').filter(a => a.user_id === user.id);
-      const allSchools = getData<School>('schools').filter(s => s.user_id === user.id);
-      const allTasks = getData<Task>('tasks').filter(t => t.user_id === user.id);
+      // Fetch all data
+      const [activitiesRes, supervisionsRes, schoolsRes, tasksRes] = await Promise.all([
+        activities.getAll(user.id),
+        supervisions.getAll(user.id),
+        schools.getAll(user.id),
+        tasks.getAll(user.id),
+      ]);
 
-      const activities = allActivities.filter(a => 
+      const allActivities = activitiesRes.data || [];
+      const allSupervisions = supervisionsRes.data || [];
+      const allSchools = schoolsRes.data || [];
+      const allTasks = tasksRes.data || [];
+
+      // Filter by date range
+      const filteredActivities = allActivities.filter(a => 
         a.date >= startDate && a.date <= endDate
       );
+      
+      const filteredSupervisions = allSupervisions.filter(s => 
+        s.date >= startDate && s.date <= endDate
+      );
 
-      const tasks = allTasks.filter(t => 
+      const filteredTasks = allTasks.filter(t => 
         t.date >= startDate && t.date <= endDate
       );
 
-      // Get all photos from activities and tasks
+      console.log("Report data:", {
+        activities: filteredActivities.length,
+        supervisions: filteredSupervisions.length,
+        tasks: filteredTasks.length
+      });
+
+      // Get all photos
       const allPhotos = [];
-      activities.forEach(activity => {
+      filteredActivities.forEach(activity => {
         if (activity.photo_url_1) allPhotos.push(activity.photo_url_1);
         if (activity.photo_url_2) allPhotos.push(activity.photo_url_2);
       });
-      tasks.forEach(task => {
+      filteredSupervisions.forEach(supervision => {
+        if (supervision.photo_url_1) allPhotos.push(supervision.photo_url_1);
+        if (supervision.photo_url_2) allPhotos.push(supervision.photo_url_2);
+      });
+      filteredTasks.forEach(task => {
         if (task.photo_url_1) allPhotos.push(task.photo_url_1);
         if (task.photo_url_2) allPhotos.push(task.photo_url_2);
       });
 
-      // Create comprehensive PDF-style report sesuai format yang diminta
+      // Create comprehensive PDF-style report
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(`
@@ -314,15 +400,15 @@ const Reports = () => {
                 <div class="stats-container">
                   <div class="stats-box">
                     <div class="stats-item">
-                      <span class="stats-number">${activities.length}</span>
+                      <span class="stats-number">${filteredActivities.length}</span>
                       <div class="stats-label">Total Aktivitas</div>
                     </div>
                     <div class="stats-item">
-                      <span class="stats-number">${activities.filter(a => a.category === 'Supervisi').length}</span>
+                      <span class="stats-number">${filteredSupervisions.length}</span>
                       <div class="stats-label">Supervisi</div>
                     </div>
                     <div class="stats-item">
-                      <span class="stats-number">${tasks.length}</span>
+                      <span class="stats-number">${filteredTasks.length}</span>
                       <div class="stats-label">Tugas Tambahan</div>
                     </div>
                   </div>
@@ -345,7 +431,7 @@ const Reports = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    ${activities.map((activity, index) => {
+                    ${filteredActivities.map((activity, index) => {
                       const school = allSchools.find(s => s.id === activity.school_id);
                       return `
                         <tr>
@@ -358,9 +444,22 @@ const Reports = () => {
                         </tr>
                       `;
                     }).join('')}
-                    ${tasks.map((task, index) => `
+                    ${filteredSupervisions.map((supervision, index) => {
+                      const school = allSchools.find(s => s.id === supervision.school_id);
+                      return `
+                        <tr>
+                          <td style="text-align: center;">${filteredActivities.length + index + 1}</td>
+                          <td>${new Date(supervision.date).toLocaleDateString('id-ID')}</td>
+                          <td>${supervision.title}</td>
+                          <td>Supervisi</td>
+                          <td>${school ? school.name : 'Tidak ada sekolah'}</td>
+                          <td>${supervision.notes || '-'}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                    ${filteredTasks.map((task, index) => `
                       <tr>
-                        <td style="text-align: center;">${activities.length + index + 1}</td>
+                        <td style="text-align: center;">${filteredActivities.length + filteredSupervisions.length + index + 1}</td>
                         <td>${new Date(task.date).toLocaleDateString('id-ID')}</td>
                         <td>${task.activity_name}</td>
                         <td>Tugas Tambahan</td>
@@ -393,6 +492,10 @@ const Reports = () => {
                 <p><strong>${user.full_name || user.email}</strong></p>
                 <p>NIP. ${user.nip || '-'}</p>
               </div>
+              
+              <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #666;">
+                <p>designed by @w.yogaswara ps smk kcdxi 2025</p>
+              </div>
             </body>
           </html>
         `);
@@ -402,6 +505,7 @@ const Reports = () => {
 
       toast.success("Laporan berhasil dibuat!");
     } catch (error: any) {
+      console.error("Generate report error:", error);
       toast.error("Gagal membuat laporan");
     }
   };

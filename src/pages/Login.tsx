@@ -11,8 +11,8 @@ import { toast } from "sonner";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@app.com");
+  const [password, setPassword] = useState("123456");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +48,16 @@ const Login = () => {
     }
   };
 
+  // Quick login function
+  const quickLogin = async () => {
+    setEmail("admin@app.com");
+    setPassword("123456");
+    setTimeout(() => {
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (form) form.requestSubmit();
+    }, 100);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md space-y-6">
@@ -64,6 +74,22 @@ const Login = () => {
           <h2 className="text-lg font-semibold text-blue-600">Cabang Dinas Pendidikan Wilayah XI</h2>
           <p className="text-gray-600">Masuk ke akun Anda untuk melanjutkan</p>
         </div>
+
+        {/* Quick Login Button */}
+        <Card className="shadow-lg bg-green-50 border-green-200">
+          <CardContent className="pt-6">
+            <Button 
+              onClick={quickLogin}
+              className="w-full bg-green-600 hover:bg-green-700"
+              size="lg"
+            >
+              🚀 Login Cepat (Admin)
+            </Button>
+            <p className="text-center text-sm text-green-700 mt-2">
+              Klik untuk langsung masuk sebagai admin
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Login Form */}
         <Card className="shadow-lg">
@@ -142,16 +168,25 @@ const Login = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Belum punya akun?{" "}
-                <Link
-                  to="/register"
-                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
-                >
-                  Daftar sekarang
-                </Link>
-              </p>
+            <div className="mt-6 space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  Belum punya akun?{" "}
+                  <Link
+                    to="/register"
+                    className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                  >
+                    Daftar sekarang
+                  </Link>
+                </p>
+              </div>
+
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <strong>Login Cepat:</strong> admin@app.com / 123456
+                </AlertDescription>
+              </Alert>
             </div>
           </CardContent>
         </Card>

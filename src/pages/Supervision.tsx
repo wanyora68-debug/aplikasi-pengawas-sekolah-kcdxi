@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { auth, schools as schoolsDB, activities as activitiesDB, uploadPhoto, School, initializeDatabase } from "@/lib/database";
+import { auth, schools as schoolsDB, supervisions as supervisionsDB, uploadPhoto, School, Supervision, initializeDatabase } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Edit, Trash2, FileText, Calendar, School as SchoolIcon, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-interface Supervision {
+interface SupervisionDisplay {
   id: string;
   title: string;
   school_id: string;
@@ -26,10 +26,10 @@ interface Supervision {
 
 const Supervision = () => {
   const [schools, setSchools] = useState<School[]>([]);
-  const [supervisions, setSupervisions] = useState<Supervision[]>([]);
+  const [supervisions, setSupervisions] = useState<SupervisionDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingSupervision, setEditingSupervision] = useState<Supervision | null>(null);
+  const [editingSupervision, setEditingSupervision] = useState<SupervisionDisplay | null>(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -93,7 +93,7 @@ const Supervision = () => {
     console.log("User email:", user.email);
     console.log("User role:", user.role);
     
-    const { data, error } = await activitiesDB.getAll(user.id, { category: "Supervisi" });
+    const { data, error } = await supervisionsDB.getAll(user.id);
     
     if (error) {
       console.error("Error fetching supervisions:", error);
@@ -107,13 +107,13 @@ const Supervision = () => {
     
     const formattedData = data?.map(item => ({
       id: item.id,
-      title: item.activity_name,
+      title: item.title,
       school_id: item.school_id || "",
       school_name: item.school_id ? 
         (currentSchools.find(s => s.id === item.school_id)?.name || "Sekolah tidak ditemukan") : 
         "Tidak ada sekolah",
       date: item.date,
-      principal_name: item.notes?.split('\n')[0]?.replace('PIC: ', '') || "",
+      principal_name: item.principal_name || "",
       notes: item.notes || "",
       photo_url_1: item.photo_url_1,
       photo_url_2: item.photo_url_2,
@@ -151,29 +151,26 @@ const Supervision = () => {
         console.log("Photo 2 uploaded:", photo_url_2);
       }
 
-      const activityData = {
-        activity_name: formData.title.trim(),
+      const supervisionData = {
+        title: formData.title.trim(),
         school_id: formData.school_id || undefined,
         date: formData.date,
-        category: "Supervisi",
-        accompaniment_type: "Supervisi",
-        notes: formData.principal_name ? 
-          `PIC: ${formData.principal_name.trim()}\n\n${formData.notes.trim()}` : 
-          formData.notes.trim(),
+        principal_name: formData.principal_name.trim() || undefined,
+        notes: formData.notes.trim(),
         photo_url_1,
         photo_url_2,
         user_id: user.id,
       };
 
-      console.log("Activity data to save:", activityData);
+      console.log("Supervision data to save:", supervisionData);
 
       if (editingSupervision) {
-        const { error } = await activitiesDB.update(editingSupervision.id, activityData);
+        const { error } = await supervisionsDB.update(editingSupervision.id, supervisionData);
         if (error) throw error;
         console.log("Supervision updated successfully");
         toast.success("Supervisi berhasil diperbarui!");
       } else {
-        const { data: savedData, error } = await activitiesDB.create(activityData);
+        const { data: savedData, error } = await supervisionsDB.create(supervisionData);
         if (error) throw error;
         console.log("Supervision created successfully:", savedData);
         toast.success("Supervisi berhasil ditambahkan!");
@@ -202,13 +199,13 @@ const Supervision = () => {
     setIsDialogOpen(false);
   };
 
-  const handleEdit = (supervision: Supervision) => {
+  const handleEdit = (supervision: SupervisionDisplay) => {
     setFormData({
       title: supervision.title,
       school_id: supervision.school_id,
       date: supervision.date,
       principal_name: supervision.principal_name || "",
-      notes: supervision.notes.replace(/^PIC: .*\n\n/, ""),
+      notes: supervision.notes,
     });
     setEditingSupervision(supervision);
     setIsDialogOpen(true);
@@ -217,7 +214,7 @@ const Supervision = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus supervisi ini?")) return;
 
-    const { error } = await activitiesDB.delete(id);
+    const { error } = await supervisionsDB.delete(id);
     if (error) {
       toast.error("Gagal menghapus supervisi");
       return;
@@ -227,7 +224,7 @@ const Supervision = () => {
     fetchSupervisions();
   };
 
-  const handlePrint = (supervision: Supervision) => {
+  const handlePrint = (supervision: SupervisionDisplay) => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -518,7 +515,7 @@ const Supervision = () => {
                     <div>
                       <h4 className="font-medium mb-2">Catatan/Temuan:</h4>
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {supervision.notes.replace(/^PIC: .*\n\n/, "")}
+                        {supervision.notes}
                       </p>
                     </div>
                     {(supervision.photo_url_1 || supervision.photo_url_2) && (

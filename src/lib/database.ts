@@ -1,12 +1,20 @@
 // Database abstraction layer - switch between localStorage and Supabase
 import { auth as localAuth, schools as localSchools, activities as localActivities, tasks as localTasks, profiles as localProfiles, getStatistics as localGetStatistics, uploadPhoto as localUploadPhoto, getData as localGetData } from './localStorage';
-import { auth as supabaseAuth, schools as supabaseSchools, activities as supabaseActivities, tasks as supabaseTasks, profiles as supabaseProfiles, getStatistics as supabaseGetStatistics, uploadPhoto as supabaseUploadPhoto } from './supabase';
+import { auth as supabaseAuth, schools as supabaseSchools, activities as supabaseActivities, tasks as supabaseTasks, supervisions as supabaseSupervisions, profiles as supabaseProfiles, getStatistics as supabaseGetStatistics, uploadPhoto as supabaseUploadPhoto } from './supabase';
 
 // Configuration - set to true to use Supabase, false for localStorage
 const USE_SUPABASE = true;
 
 console.log('=== DATABASE CONFIGURATION ===');
 console.log('Database type:', USE_SUPABASE ? 'Supabase (Cloud)' : 'localStorage (Local)');
+
+// For localStorage, we need to create a placeholder supervisions implementation
+const localSupervisions = {
+  getAll: async () => ({ data: [], error: null }),
+  create: async () => ({ data: null, error: { message: 'Supervisions not supported in localStorage mode' } }),
+  update: async () => ({ data: null, error: { message: 'Supervisions not supported in localStorage mode' } }),
+  delete: async () => ({ error: { message: 'Supervisions not supported in localStorage mode' } }),
+};
 
 // For Supabase, we need to implement getData function
 const supabaseGetData = async <T>(key: string): Promise<T[]> => {
@@ -21,13 +29,14 @@ export const auth = USE_SUPABASE ? supabaseAuth : localAuth;
 export const schools = USE_SUPABASE ? supabaseSchools : localSchools;
 export const activities = USE_SUPABASE ? supabaseActivities : localActivities;
 export const tasks = USE_SUPABASE ? supabaseTasks : localTasks;
+export const supervisions = USE_SUPABASE ? supabaseSupervisions : localSupervisions;
 export const profiles = USE_SUPABASE ? supabaseProfiles : localProfiles;
 export const getStatistics = USE_SUPABASE ? supabaseGetStatistics : localGetStatistics;
 export const uploadPhoto = USE_SUPABASE ? supabaseUploadPhoto : localUploadPhoto;
 export const getData = USE_SUPABASE ? supabaseGetData : localGetData;
 
 // Export types
-export type { User, School, Activity, Task } from './supabase';
+export type { User, School, Activity, Task, Supervision } from './supabase';
 
 // Initialize function
 export const initializeDatabase = async () => {
