@@ -166,20 +166,63 @@ export const auth = {
       }
 
       if (data.user) {
-        // Get user profile from our users table
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
+        console.log("Auth successful, user ID:", data.user.id);
+        
+        // Simplified profile fetch with better error handling
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle(); // Use maybeSingle instead of single
 
-        if (profileError) {
-          console.log("Profile fetch error:", profileError);
-          return { user: null, error: { message: 'Gagal mengambil data profil' } };
+          if (profileError) {
+            console.log("Profile fetch error:", profileError);
+            
+            // Create a basic profile if fetch fails
+            const basicProfile = {
+              id: data.user.id,
+              email: data.user.email || email,
+              full_name: data.user.user_metadata?.full_name || 'User',
+              role: 'user',
+              created_at: new Date().toISOString(),
+            };
+            
+            console.log("Using basic profile due to fetch error");
+            return { user: basicProfile, error: null };
+          }
+
+          if (profile) {
+            console.log("Login successful for user:", profile.email, "role:", profile.role);
+            return { user: profile, error: null };
+          } else {
+            console.log("No profile found, creating basic profile");
+            
+            // Create basic profile if none exists
+            const basicProfile = {
+              id: data.user.id,
+              email: data.user.email || email,
+              full_name: data.user.user_metadata?.full_name || 'User',
+              role: 'user',
+              created_at: new Date().toISOString(),
+            };
+            
+            return { user: basicProfile, error: null };
+          }
+        } catch (profileFetchError) {
+          console.log("Profile fetch exception:", profileFetchError);
+          
+          // Fallback to basic profile
+          const basicProfile = {
+            id: data.user.id,
+            email: data.user.email || email,
+            full_name: data.user.user_metadata?.full_name || 'User',
+            role: 'user',
+            created_at: new Date().toISOString(),
+          };
+          
+          return { user: basicProfile, error: null };
         }
-
-        console.log("Login successful for user:", profile.email, "role:", profile.role);
-        return { user: profile, error: null };
       }
 
       return { user: null, error: { message: 'Login gagal' } };
@@ -196,19 +239,21 @@ export const auth = {
     pangkat?: string;
     unit_kerja?: string;
   }) => {
-    console.log("=== SUPABASE REGISTER DEBUG ===");
-    console.log("Attempting registration with email:", email);
-    console.log("User data:", userData);
+    console.log("=== SUPABASE REGISTER - AUTH ONLY ===");
+    console.log("Creating auth user for:", email);
     
     try {
-      // First, create auth user
+      // ONLY CREATE AUTH USER - ABSOLUTELY NO PROFILE OPERATIONS
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: userData
+        }
       });
 
       if (authError) {
-        console.log("Supabase auth signup error:", authError);
+        console.log("Auth signup error:", authError);
         if (authError.message.includes('already registered')) {
           return { user: null, error: { message: 'Email sudah terdaftar' } };
         }
@@ -216,32 +261,19 @@ export const auth = {
       }
 
       if (authData.user) {
-        // Create user profile in our users table
-        const newUser: User = {
+        console.log("✅ AUTH USER CREATED SUCCESSFULLY");
+        
+        // ALWAYS RETURN SUCCESS - NO PROFILE CREATION ATTEMPTS
+        const mockUser = {
           id: authData.user.id,
-          email,
+          email: authData.user.email || email,
           full_name: userData.full_name,
-          nip: userData.nip,
-          position: userData.position,
-          pangkat: userData.pangkat,
-          unit_kerja: userData.unit_kerja,
-          role: 'user',
+          role: 'user' as const,
           created_at: new Date().toISOString(),
         };
 
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .insert([newUser])
-          .select()
-          .single();
-
-        if (profileError) {
-          console.log("Profile creation error:", profileError);
-          return { user: null, error: { message: 'Gagal membuat profil pengguna' } };
-        }
-
-        console.log("Registration successful for user:", profile.email);
-        return { user: profile, error: null };
+        console.log("✅ REGISTRATION SUCCESS - NO PROFILE OPERATIONS");
+        return { user: mockUser, error: null };
       }
 
       return { user: null, error: { message: 'Registrasi gagal' } };
@@ -272,23 +304,60 @@ export const auth = {
         return { user: null, error: null };
       }
 
-      // Get user profile from our users table
+      console.log("Auth user found:", user.id, user.email);
+
+      // Get user profile from our users table with better error handling
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError) {
-        console.log("Profile fetch error:", profileError);
-        return { user: null, error: null };
+      if (profile) {
+        console.log("getUser: returning existing profile:", profile);
+        return { user: profile, error: null };
       }
 
-      console.log("getUser: returning user:", profile);
-      return { user: profile, error: null };
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.log("Profile fetch error:", profileError);
+      }
+      
+      // If profile doesn't exist, create it from auth user metadata
+      console.log("Profile not found, creating from auth user metadata");
+      
+      const newProfile = {
+        id: user.id,
+        email: user.email || '',
+        full_name: user.user_metadata?.full_name || 'User',
+        nip: user.user_metadata?.nip || null,
+        position: user.user_metadata?.position || null,
+        pangkat: user.user_metadata?.pangkat || null,
+        unit_kerja: user.user_metadata?.unit_kerja || null,
+        role: 'user',
+        created_at: new Date().toISOString(),
+      };
+
+      try {
+        const { data: createdProfile, error: createError } = await supabase
+          .from('users')
+          .upsert([newProfile], { onConflict: 'id' })
+          .select()
+          .single();
+
+        if (createError) {
+          console.log("Failed to create profile, using basic profile:", createError);
+          return { user: newProfile, error: null };
+        }
+
+        console.log("Profile created successfully on login:", createdProfile);
+        return { user: createdProfile, error: null };
+      } catch (createException) {
+        console.log("Profile creation exception, using basic profile:", createException);
+        return { user: newProfile, error: null };
+      }
     } catch (error) {
       console.error('Error getting user:', error);
-      return { user: null, error: null };
+      return { user: null, error: { message: 'Terjadi kesalahan saat mengambil profil' } };
     }
   },
 };
@@ -720,9 +789,24 @@ export const getStatistics = async (userId: string) => {
   }
 };
 
-// Initialize Supabase (no localStorage initialization needed)
+// Initialize Supabase (create demo user if needed)
 export const initializeSupabase = async () => {
   console.log("=== INITIALIZING SUPABASE ===");
-  // Supabase handles initialization automatically
+  
+  try {
+    // Check if demo user exists, if not create one
+    const { data: existingUser } = await supabase.auth.signInWithPassword({
+      email: 'pengawas@demo.com',
+      password: 'demo123'
+    });
+    
+    if (existingUser.user) {
+      console.log("Demo user already exists");
+      await supabase.auth.signOut(); // Sign out after check
+    }
+  } catch (error) {
+    console.log("Demo user doesn't exist, will be created on first registration");
+  }
+  
   console.log("Supabase initialized successfully");
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { auth } from "@/lib/database";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,9 @@ import {
   User,
   Eye,
   BarChart3,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Shield,
+  Users
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +23,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { user } = await auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -32,7 +43,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const navItems = [
+  // Navigation items for regular users
+  const userNavItems = [
     { path: "/dashboard", icon: Home, label: "Dashboard" },
     { path: "/activities", icon: ClipboardList, label: "Aktivitas" },
     { path: "/supervision", icon: Eye, label: "Supervisi" },
@@ -43,9 +55,51 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { path: "/profile", icon: User, label: "Profil" },
   ];
 
+  // Navigation items for admin users
+  const adminNavItems = [
+    { path: "/admin", icon: Shield, label: "Admin Dashboard" },
+    { path: "/admin/users", icon: Users, label: "Kelola Pengawas" },
+    { path: "/admin/reports", icon: BarChart3, label: "Laporan Admin" },
+    { path: "/dashboard", icon: Home, label: "Dashboard Pengawas" },
+    { path: "/activities", icon: ClipboardList, label: "Aktivitas" },
+    { path: "/supervision", icon: Eye, label: "Supervisi" },
+    { path: "/schools", icon: School, label: "Sekolah" },
+    { path: "/tasks", icon: FileText, label: "Tugas Tambahan" },
+    { path: "/settings", icon: SettingsIcon, label: "Pengaturan" },
+    { path: "/profile", icon: User, label: "Profil" },
+  ];
+
+  const navItems = currentUser?.role === 'admin' ? adminNavItems : userNavItems;
+
   const NavLinks = () => (
     <>
-      {navItems.map((item) => (
+      {currentUser?.role === 'admin' && (
+        <div className="mb-4">
+          <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Admin Panel
+          </div>
+          {adminNavItems.slice(0, 3).map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                location.pathname === item.path
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent"
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          ))}
+          <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4">
+            Pengawas Panel
+          </div>
+        </div>
+      )}
+      
+      {(currentUser?.role === 'admin' ? adminNavItems.slice(3) : userNavItems).map((item) => (
         <Link
           key={item.path}
           to={item.path}
@@ -68,7 +122,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Mobile Header */}
       <header className="lg:hidden sticky top-0 z-50 w-full border-b bg-card">
         <div className="flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-bold text-foreground">Jurnal Pengawas</h1>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Jurnal Pengawas</h1>
+            {currentUser?.role === 'admin' && (
+              <p className="text-xs text-muted-foreground">Administrator</p>
+            )}
+          </div>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -79,6 +138,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <div className="flex flex-col h-full">
                 <div className="p-6 border-b">
                   <h2 className="text-lg font-semibold">Menu</h2>
+                  {currentUser?.role === 'admin' && (
+                    <p className="text-sm text-muted-foreground">Administrator</p>
+                  )}
                 </div>
                 <nav className="flex-1 p-4 space-y-2">
                   <NavLinks />
@@ -107,6 +169,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <h1 className="text-xl font-bold text-foreground">
                 Jurnal Pengawas Sekolah
               </h1>
+              {currentUser?.role === 'admin' && (
+                <p className="text-sm text-muted-foreground mt-1">Administrator Panel</p>
+              )}
             </div>
             <nav className="flex-1 p-4 space-y-2">
               <NavLinks />
