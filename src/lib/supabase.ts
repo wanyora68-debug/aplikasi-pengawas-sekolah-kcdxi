@@ -1,14 +1,94 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Supabase configuration
+// Supabase configuration with strict validation
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+console.log('=== SUPABASE CONFIG VALIDATION ===');
+console.log('Environment check:');
+console.log('- VITE_SUPABASE_URL:', supabaseUrl ? '✅ Present' : '❌ Missing');
+console.log('- VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Present' : '❌ Missing');
+
+// Strict validation - no fallbacks or workarounds
+if (!supabaseUrl) {
+  const errorMsg = `
+❌ MISSING SUPABASE URL
+Environment variable VITE_SUPABASE_URL is not configured.
+
+For local development:
+1. Create/update .env.local file
+2. Add: VITE_SUPABASE_URL=https://your-project-id.supabase.co
+
+For Vercel deployment:
+1. Go to Vercel Dashboard → Project Settings → Environment Variables
+2. Add VITE_SUPABASE_URL with your Supabase project URL
+
+Current value: ${supabaseUrl}
+  `;
+  console.error(errorMsg);
+  throw new Error('VITE_SUPABASE_URL environment variable is required');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+if (!supabaseAnonKey) {
+  const errorMsg = `
+❌ MISSING SUPABASE ANON KEY
+Environment variable VITE_SUPABASE_ANON_KEY is not configured.
+
+For local development:
+1. Create/update .env.local file
+2. Add: VITE_SUPABASE_ANON_KEY=your_anon_key_here
+
+For Vercel deployment:
+1. Go to Vercel Dashboard → Project Settings → Environment Variables
+2. Add VITE_SUPABASE_ANON_KEY with your Supabase anon key
+
+Get your anon key from: Supabase Dashboard → Settings → API
+  `;
+  console.error(errorMsg);
+  throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required');
+}
+
+// Validate URL format
+if (!supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
+  const errorMsg = `
+❌ INVALID SUPABASE URL FORMAT
+VITE_SUPABASE_URL has invalid format: "${supabaseUrl}"
+
+Expected format: https://your-project-id.supabase.co
+Example: https://npllwokylzufmgmngaa.supabase.co
+
+Please check your Supabase project settings.
+  `;
+  console.error(errorMsg);
+  throw new Error(`Invalid VITE_SUPABASE_URL format: ${supabaseUrl}`);
+}
+
+// Validate anon key format (JWT should start with eyJ)
+if (!supabaseAnonKey.startsWith('eyJ')) {
+  const errorMsg = `
+❌ INVALID SUPABASE ANON KEY FORMAT
+VITE_SUPABASE_ANON_KEY should be a JWT token starting with "eyJ"
+
+Current value starts with: "${supabaseAnonKey.substring(0, 10)}..."
+
+Please get the correct anon key from:
+Supabase Dashboard → Settings → API → "anon public" key
+  `;
+  console.error(errorMsg);
+  throw new Error('Invalid VITE_SUPABASE_ANON_KEY format - should be a JWT token');
+}
+
+console.log('✅ Supabase configuration validated successfully');
+console.log('📡 Connecting to:', supabaseUrl);
+console.log('🔑 Using anon key:', supabaseAnonKey.substring(0, 20) + '...');
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
 
 // Database Types (matching localStorage structure)
 export interface User {

@@ -5,6 +5,9 @@ import { auth as supabaseAuth, schools as supabaseSchools, activities as supabas
 // Configuration - set to true to use Supabase, false for localStorage
 const USE_SUPABASE = true;
 
+console.log('=== DATABASE CONFIGURATION ===');
+console.log('Database type:', USE_SUPABASE ? 'Supabase (Cloud)' : 'localStorage (Local)');
+
 // For Supabase, we need to implement getData function
 const supabaseGetData = async <T>(key: string): Promise<T[]> => {
   // This is a compatibility function for localStorage getData
@@ -29,10 +32,24 @@ export type { User, School, Activity, Task } from './supabase';
 // Initialize function
 export const initializeDatabase = async () => {
   if (USE_SUPABASE) {
-    console.log("=== USING SUPABASE DATABASE ===");
-    // Supabase doesn't need initialization like localStorage
+    console.log("=== INITIALIZING SUPABASE DATABASE ===");
+    try {
+      // Test Supabase connection
+      const { supabase } = await import('./supabase');
+      const { data, error } = await supabase.from('users').select('count').limit(1);
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" which is OK
+        console.error('❌ Supabase connection test failed:', error);
+        throw new Error(`Supabase connection failed: ${error.message}`);
+      }
+      
+      console.log('✅ Supabase connection test successful');
+    } catch (error) {
+      console.error('❌ Database initialization failed:', error);
+      throw error;
+    }
   } else {
-    console.log("=== USING LOCALSTORAGE DATABASE ===");
+    console.log("=== INITIALIZING LOCALSTORAGE DATABASE ===");
     const { initializeLocalStorage } = await import('./localStorage');
     initializeLocalStorage();
   }
@@ -47,5 +64,6 @@ export const getDatabaseInfo = () => {
       : 'Local browser storage',
     multiDevice: USE_SUPABASE,
     persistent: USE_SUPABASE,
+    configured: USE_SUPABASE ? 'Environment variables validated' : 'Yes',
   };
 };
