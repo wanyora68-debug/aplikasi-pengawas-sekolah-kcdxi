@@ -1,4 +1,5 @@
 import { useState } from "react";
+import logoCadisdik from "@/assets/logo-cadisdik-xi.base64.png";
 import { useNavigate, Link } from "react-router-dom";
 import { auth, initializeDatabase } from "@/lib/database";
 import { Button } from "@/components/ui/button";
@@ -54,11 +55,8 @@ const Login = () => {
         {/* Header */}
         <div className="text-center space-y-3">
           {/* Logo Cabang Dinas Pendidikan Wilayah XI */}
-          <div className="mx-auto w-20 h-20 mb-4 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
-            <div className="text-center">
-              <div className="text-white font-bold text-lg">XI</div>
-              <div className="text-white text-xs">CADISDIK</div>
-            </div>
+          <div className="mx-auto w-24 h-24 mb-4 flex items-center justify-center">
+            <img src={logoCadisdik} alt="Logo Cadisdik" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Jurnal Pengawas Sekolah</h1>
           <h2 className="text-lg font-semibold text-blue-600">Cabang Dinas Pendidikan Wilayah XI</h2>
