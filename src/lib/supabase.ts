@@ -930,20 +930,46 @@ export const getStatistics = async (userId: string) => {
 export const initializeSupabase = async () => {
   console.log("=== INITIALIZING SUPABASE ===");
   
+  // Keep-alive ping to prevent Supabase free tier from pausing
+  // This runs a lightweight query every time the app loads
   try {
-    // Check if demo user exists, if not create one
-    const { data: existingUser } = await supabase.auth.signInWithPassword({
-      email: 'pengawas@demo.com',
-      password: 'demo123'
-    });
-    
-    if (existingUser.user) {
-      console.log("Demo user already exists");
-      await supabase.auth.signOut(); // Sign out after check
-    }
+    await supabase.from('users').select('count').limit(1);
+    console.log("✅ Supabase keep-alive ping successful");
   } catch (error) {
-    console.log("Demo user doesn't exist, will be created on first registration");
+    console.log("Keep-alive ping failed (non-critical):", error);
   }
   
   console.log("Supabase initialized successfully");
+};
+
+// Keep-alive ping to prevent Supabase free tier from pausing
+// Supabase pauses projects after 7 days of inactivity on free tier
+export const keepAlive = async (): Promise<void> => {
+  try {
+    // Simple lightweight query - just check if DB is reachable
+    await supabase.from('users').select('id').limit(1);
+    console.log('✅ Keep-alive ping successful:', new Date().toISOString());
+  } catch (error) {
+    console.warn('⚠️ Keep-alive ping failed:', error);
+  }
+};
+
+// Start periodic keep-alive pings
+// Runs every 4 days (345600000 ms) to stay well within the 7-day pause threshold
+export const startKeepAlive = (): (() => void) => {
+  const INTERVAL_MS = 4 * 24 * 60 * 60 * 1000; // 4 days
+  
+  // Run immediately on start
+  keepAlive();
+  
+  // Then run every 4 days
+  const intervalId = setInterval(keepAlive, INTERVAL_MS);
+  
+  console.log('🔄 Keep-alive scheduler started (every 4 days)');
+  
+  // Return cleanup function
+  return () => {
+    clearInterval(intervalId);
+    console.log('🛑 Keep-alive scheduler stopped');
+  };
 };

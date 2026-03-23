@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -16,11 +17,18 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import { startKeepAlive } from "./lib/supabase";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   console.log("App component loaded"); // Debug log
+
+  useEffect(() => {
+    // Start keep-alive to prevent Supabase free tier from pausing
+    const stopKeepAlive = startKeepAlive();
+    return () => stopKeepAlive();
+  }, []);
   
   return (
     <ErrorBoundary>
