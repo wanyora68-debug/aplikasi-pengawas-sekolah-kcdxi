@@ -7,19 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Download, Calendar, BarChart3, TrendingUp, Printer } from "lucide-react";
+import { FileText, Download, Calendar, BarChart3, TrendingUp, Printer, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface ReportData {
   // Total keseluruhan (semua data, tidak difilter periode)
-  totalActivities: number;
-  totalSupervisions: number;
+  totalActivities: number;      // aktivitas pendampingan saja
+  totalSupervisions: number;    // supervisi saja
+  totalTasks: number;           // tugas tambahan saja
+  totalAll: number;             // semua kegiatan (activities + supervisions + tasks)
   totalSchools: number;
-  totalTasks: number;
   // Data periode yang dipilih
   periodActivities: number;
   periodSupervisions: number;
   periodTasks: number;
+  periodAll: number;
   activitiesByMonth: { [key: string]: number };
   activitiesByCategory: { [key: string]: number };
   schoolsWithActivities: number;
@@ -38,11 +40,13 @@ const Reports = () => {
   const [reportData, setReportData] = useState<ReportData>({
     totalActivities: 0,
     totalSupervisions: 0,
-    totalSchools: 0,
     totalTasks: 0,
+    totalAll: 0,
+    totalSchools: 0,
     periodActivities: 0,
     periodSupervisions: 0,
     periodTasks: 0,
+    periodAll: 0,
     activitiesByMonth: {},
     activitiesByCategory: {},
     schoolsWithActivities: 0,
@@ -120,12 +124,14 @@ const Reports = () => {
         // Total keseluruhan semua data
         totalActivities: allActivities.length,
         totalSupervisions: allSupervisions.length,
-        totalSchools: allSchools.length,
         totalTasks: allTasks.length,
+        totalAll: allActivities.length + allSupervisions.length + allTasks.length,
+        totalSchools: allSchools.length,
         // Data periode yang dipilih
         periodActivities: filteredActivities.length,
         periodSupervisions: filteredSupervisions.length,
         periodTasks: filteredTasks.length,
+        periodAll: filteredActivities.length + filteredSupervisions.length + filteredTasks.length,
         activitiesByMonth,
         activitiesByCategory,
         schoolsWithActivities: schoolsSet.size,
@@ -275,10 +281,46 @@ ${photoHtml}
   };
 
   const statCards = [
-    { title: "Total Aktivitas", value: reportData.totalActivities, sub: `${reportData.periodActivities} periode ini`, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
-    { title: "Total Supervisi", value: reportData.totalSupervisions, sub: `${reportData.periodSupervisions} periode ini`, icon: FileText, color: "text-green-600", bgColor: "bg-green-100" },
-    { title: "Sekolah Dampingan", value: reportData.totalSchools, sub: `${reportData.schoolsWithActivities} aktif periode ini`, icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-100" },
-    { title: "Tugas Tambahan", value: reportData.totalTasks, sub: `${reportData.periodTasks} periode ini`, icon: Calendar, color: "text-orange-600", bgColor: "bg-orange-100" },
+    {
+      title: "Total Semua Kegiatan",
+      value: reportData.totalAll,
+      sub: `${reportData.periodAll} kegiatan periode ini`,
+      icon: BarChart3,
+      color: "text-blue-600",
+      bgColor: "bg-blue-100"
+    },
+    {
+      title: "Aktivitas Pendampingan",
+      value: reportData.totalActivities,
+      sub: `${reportData.periodActivities} periode ini`,
+      icon: ClipboardList,
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-100"
+    },
+    {
+      title: "Supervisi",
+      value: reportData.totalSupervisions,
+      sub: `${reportData.periodSupervisions} periode ini`,
+      icon: FileText,
+      color: "text-green-600",
+      bgColor: "bg-green-100"
+    },
+    {
+      title: "Tugas Tambahan",
+      value: reportData.totalTasks,
+      sub: `${reportData.periodTasks} periode ini`,
+      icon: Calendar,
+      color: "text-orange-600",
+      bgColor: "bg-orange-100"
+    },
+    {
+      title: "Sekolah Dampingan",
+      value: reportData.totalSchools,
+      sub: `${reportData.schoolsWithActivities} aktif periode ini`,
+      icon: TrendingUp,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100"
+    },
   ];
 
   return (
@@ -347,7 +389,7 @@ ${photoHtml}
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
             {statCards.map((stat) => (
               <Card key={stat.title}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
