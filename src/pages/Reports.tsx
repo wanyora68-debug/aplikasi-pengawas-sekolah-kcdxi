@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { auth, activities, schools, tasks, supervisions } from "@/lib/database";
+import { auth } from "@/lib/database";
+import { supabase } from "@/lib/supabase";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -21,13 +22,13 @@ interface ReportData {
   activitiesByCategory: { [key: string]: number };
 }
 
-// Cache data yang sudah di-fetch agar cetak tidak perlu fetch ulang
+// Cache data untuk cetak cepat
 let dataCache: {
   user: any;
-  filteredActivities: any[];
-  filteredSupervisions: any[];
-  filteredTasks: any[];
-  allSchools: any[];
+  acts: any[];
+  sups: any[];
+  tsks: any[];
+  schs: any[];
 } | null = null;
 
 const Reports = () => {
@@ -49,9 +50,22 @@ const Reports = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
-    dataCache = null; // reset cache saat filter berubah
+    dataCache = null;
     fetchReportData();
   }, [reportType, selectedMonth, selectedYear]);
+
+  const getDateRange = () => {
+    if (reportType === 'monthly') {
+      return {
+        startDate: new Date(selectedYear, selectedMonth - 1, 1).toISOString().split('T')[0],
+        endDate: new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0],
+      };
+    }
+    return {
+      startDate: `${selectedYear}-01-01`,
+      endDate: `${selectedYear}-12-31`,
+    };
+  };
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -59,93 +73,59 @@ const Reports = () => {
       const { user } = await auth.getUser();
       if (!user) { setLoading(false); return; }
 
-      let startDate: string, endDate: string;
-      if (reportType === 'monthly') {
-        startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString().split('T')[0];
-        endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
-      } else {
-        startDate = new Date(selectedYear, 0, 1).toISOString().split('T')[0];
-        endDate = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
-      }
+      const { startDate, endDate } = getDateRange();
 
-      // Fetch paralel dengan Promise.allSettled - tidak gagal total jika satu error
-      const [actRes, supRes, schRes, taskRes] = await Promise.allSettled([
-        activities.getAll(user.id),
-        supervisions.getAll(user.id),
-        schools.getAll(user.id),
-        tasks.getAll(user.id),
+      // Query langsung ke Supabase dengan filter tanggal di server
+      const [actResult, supResult, schResult, taskResult] = await Promise.all([
+        supabase.from('activities').select('*').eq('user_id', user.id).gte('date', startDate).lte('date', endDate),
+        supabase.from('supervisions').select('*').eq('user_id', user.id).gte('date', startDate).lte('date', endDate),
+        supabase.from('schools').select('*').eq('user_id', user.id),
+        supabase.from('tasks').select('*').eq('user_id', user.id).gte('date', startDate).lte('date', endDate),
       ]);
 
-      const allActivities = actRes.status === 'fulfilled' ? actRes.value.data || [] : [];
-      const allSupervisions = supRes.status === 'fulfilled' ? supRes.value.data || [] : [];
-      const allSchools = schRes.status === 'fulfilled' ? schRes.value.data || [] : [];
-      const allTasks = taskRes.status === 'fulfilled' ? taskRes.value.data || [] : [];
+      const acts = actResult.data || [];
+      const sups = supResult.data || [];
+      const schs = schResult.data || [];
+      const tsks = taskResult.data || [];
 
-      console.log("=== REPORTS DEBUG ===");
-      console.log("startDate:", startDate, "endDate:", endDate);
-      console.log("allActivities count:", allActivities.length);
-      if (allActivities.length > 0) {
-        console.log("Sample activity date:", allActivities[0].date, "type:", typeof allActivities[0].date);
-      }
+      // Simpan ke cache untuk cetak
+      dataCache = { user, acts, sups, tsks, schs };
 
-      // Normalisasi tanggal ke format YYYY-MM-DD untuk perbandingan yang konsisten
-      const normalizeDate = (d: string) => d ? d.substring(0, 10) : '';
-
-      const filteredActivities = allActivities.filter((a: any) => {
-        const d = normalizeDate(a.date);
-        return d >= startDate && d <= endDate;
-      });
-      const filteredSupervisions = allSupervisions.filter((s: any) => {
-        const d = normalizeDate(s.date);
-        return d >= startDate && d <= endDate;
-      });
-      const filteredTasks = allTasks.filter((t: any) => {
-        const d = normalizeDate(t.date);
-        return d >= startDate && d <= endDate;
-      });
-
-      console.log("filteredActivities:", filteredActivities.length);
-      console.log("filteredSupervisions:", filteredSupervisions.length);
-      console.log("filteredTasks:", filteredTasks.length);
-
-      // Simpan ke cache - dipakai saat cetak tanpa fetch ulang
-      dataCache = { user, filteredActivities, filteredSupervisions, filteredTasks, allSchools };
-
+      // Hitung statistik
       const activitiesByMonth: { [key: string]: number } = {};
       const activitiesByCategory: { [key: string]: number } = {};
       const schoolsSet = new Set<string>();
 
-      filteredActivities.forEach((a: any) => {
+      acts.forEach((a: any) => {
         const m = new Date(a.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[m] = (activitiesByMonth[m] || 0) + 1;
-        // Kelompokkan semua aktivitas dari tabel activities sebagai "Aktivitas"
         activitiesByCategory['Aktivitas'] = (activitiesByCategory['Aktivitas'] || 0) + 1;
         if (a.school_id) schoolsSet.add(a.school_id);
       });
-      filteredSupervisions.forEach((s: any) => {
+
+      sups.forEach((s: any) => {
         const m = new Date(s.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[m] = (activitiesByMonth[m] || 0) + 1;
         activitiesByCategory['Supervisi'] = (activitiesByCategory['Supervisi'] || 0) + 1;
         if (s.school_id) schoolsSet.add(s.school_id);
       });
-      filteredTasks.forEach((t: any) => {
+
+      tsks.forEach((t: any) => {
         const m = new Date(t.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[m] = (activitiesByMonth[m] || 0) + 1;
         activitiesByCategory['Tugas Tambahan'] = (activitiesByCategory['Tugas Tambahan'] || 0) + 1;
       });
 
       setReportData({
-        periodActivities: filteredActivities.length,
-        periodSupervisions: filteredSupervisions.length,
-        periodTasks: filteredTasks.length,
-        periodAll: filteredActivities.length + filteredSupervisions.length + filteredTasks.length,
-        totalSchools: allSchools.length,
+        periodActivities: acts.length,
+        periodSupervisions: sups.length,
+        periodTasks: tsks.length,
+        periodAll: acts.length + sups.length + tsks.length,
+        totalSchools: schs.length,
         schoolsWithActivities: schoolsSet.size,
         activitiesByMonth,
         activitiesByCategory,
       });
-
-      console.log("Final stats - activities:", filteredActivities.length, "supervisions:", filteredSupervisions.length, "tasks:", filteredTasks.length);
 
     } catch (error: any) {
       toast.error("Gagal memuat data: " + (error.message || 'Coba refresh halaman'));
@@ -159,69 +139,57 @@ const Reports = () => {
     setGenerating(true);
 
     try {
-      // Gunakan cache - tidak perlu fetch ulang ke Supabase
-      let user: any, filteredActivities: any[], filteredSupervisions: any[], filteredTasks: any[], allSchools: any[];
+      let user: any, acts: any[], sups: any[], tsks: any[], schs: any[];
 
       if (dataCache) {
-        ({ user, filteredActivities, filteredSupervisions, filteredTasks, allSchools } = dataCache);
+        ({ user, acts, sups, tsks, schs } = dataCache);
       } else {
-        // Fallback jika cache kosong
         const { user: u } = await auth.getUser();
         if (!u) { setGenerating(false); return; }
         user = u;
-        let startDate: string, endDate: string;
-        if (reportType === 'monthly') {
-          startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString().split('T')[0];
-          endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
-        } else {
-          startDate = new Date(selectedYear, 0, 1).toISOString().split('T')[0];
-          endDate = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
-        }
-        const [actRes, supRes, schRes, taskRes] = await Promise.allSettled([
-          activities.getAll(user.id), supervisions.getAll(user.id),
-          schools.getAll(user.id), tasks.getAll(user.id),
+        const { startDate, endDate } = getDateRange();
+        const [ar, sr, scr, tr] = await Promise.all([
+          supabase.from('activities').select('*').eq('user_id', user.id).gte('date', startDate).lte('date', endDate),
+          supabase.from('supervisions').select('*').eq('user_id', user.id).gte('date', startDate).lte('date', endDate),
+          supabase.from('schools').select('*').eq('user_id', user.id),
+          supabase.from('tasks').select('*').eq('user_id', user.id).gte('date', startDate).lte('date', endDate),
         ]);
-        const allAct = actRes.status === 'fulfilled' ? actRes.value.data || [] : [];
-        const allSup = supRes.status === 'fulfilled' ? supRes.value.data || [] : [];
-        allSchools = schRes.status === 'fulfilled' ? schRes.value.data || [] : [];
-        const allTask = taskRes.status === 'fulfilled' ? taskRes.value.data || [] : [];
-        filteredActivities = allAct.filter((a: any) => a.date >= startDate && a.date <= endDate);
-        filteredSupervisions = allSup.filter((s: any) => s.date >= startDate && s.date <= endDate);
-        filteredTasks = allTask.filter((t: any) => t.date >= startDate && t.date <= endDate);
+        acts = ar.data || [];
+        sups = sr.data || [];
+        schs = scr.data || [];
+        tsks = tr.data || [];
       }
 
       const periodText = reportType === 'monthly'
         ? new Date(selectedYear, selectedMonth - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
         : `Tahun ${selectedYear}`;
 
-      const esc = (v: any) => String(v || '-').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const esc = (v: any) => String(v || '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const logoUrl = `${window.location.origin}/logo-cadisdik-xi.png`;
       const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Kumpulkan foto max 6
       const photos: string[] = [];
-      [...filteredActivities, ...filteredSupervisions, ...filteredTasks].forEach((item: any) => {
+      [...acts, ...sups, ...tsks].forEach((item: any) => {
         if (item.photo_url_1 && photos.length < 6) photos.push(item.photo_url_1);
         if (item.photo_url_2 && photos.length < 6) photos.push(item.photo_url_2);
       });
 
-      // Build tabel
       let rows = '';
       let n = 1;
-      filteredActivities.forEach((a: any) => {
-        const sc = allSchools.find((s: any) => s.id === a.school_id);
+      acts.forEach((a: any) => {
+        const sc = schs.find((s: any) => s.id === a.school_id);
         rows += `<tr><td style="text-align:center">${n++}</td><td>${new Date(a.date).toLocaleDateString('id-ID')}</td><td>${esc(a.activity_name)}</td><td>${esc(a.category)}</td><td>${sc ? esc(sc.name) : '-'}</td><td>${esc(a.notes)}</td></tr>`;
       });
-      filteredSupervisions.forEach((s: any) => {
-        const sc = allSchools.find((sc: any) => sc.id === s.school_id);
+      sups.forEach((s: any) => {
+        const sc = schs.find((sc: any) => sc.id === s.school_id);
         rows += `<tr><td style="text-align:center">${n++}</td><td>${new Date(s.date).toLocaleDateString('id-ID')}</td><td>${esc(s.title)}</td><td>Supervisi</td><td>${sc ? esc(sc.name) : '-'}</td><td>${esc(s.notes)}</td></tr>`;
       });
-      filteredTasks.forEach((t: any) => {
+      tsks.forEach((t: any) => {
         rows += `<tr><td style="text-align:center">${n++}</td><td>${new Date(t.date).toLocaleDateString('id-ID')}</td><td>${esc(t.activity_name)}</td><td>Tugas Tambahan</td><td>${esc(t.location)}</td><td>${esc(t.description)}</td></tr>`;
       });
       if (!rows) rows = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#666">Tidak ada data kegiatan pada periode ini</td></tr>`;
 
-      const photoHtml = photos.length > 0 ? `<div style="margin-bottom:15px"><h3 style="color:#007bff;margin-bottom:8px">BUKTI KEGIATAN</h3><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${photos.map((p, i) => `<div style="text-align:center"><img src="${p}" style="max-width:100%;max-height:110px;border:1px solid #ddd;border-radius:4px"/><div style="font-size:10px;color:#666;margin-top:3px">Foto ${i+1}</div></div>`).join('')}</div></div>` : '';
+      const photoHtml = photos.length > 0 ? `<div style="margin-bottom:15px"><h3 style="color:#007bff;margin-bottom:8px">BUKTI KEGIATAN</h3><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${photos.map((p, i) => `<div style="text-align:center"><img src="${p}" style="max-width:100%;max-height:110px;border:1px solid #ddd;border-radius:4px"/><div style="font-size:10px;color:#666;margin-top:3px">Foto ${i + 1}</div></div>`).join('')}</div></div>` : '';
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan ${periodText}</title>
 <style>body{font-family:Arial,sans-serif;margin:15px;line-height:1.5;font-size:12px;color:#333}.hdr{display:flex;align-items:center;justify-content:center;gap:15px;border-bottom:3px solid #007bff;padding-bottom:12px;margin-bottom:12px}.logo{width:65px;height:65px;object-fit:contain}.bl{height:2px;background:#007bff;margin:10px 0}.sb{background:#f0f7ff;border:2px solid #007bff;border-radius:8px;padding:10px;text-align:center;display:inline-block}.si{display:inline-block;margin:4px 10px;text-align:center}.sn{font-size:1.7em;font-weight:bold;color:#007bff;display:block}.sl{font-size:0.8em;color:#555}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #ccc;padding:5px 6px;font-size:11px;vertical-align:top}th{background:#007bff;color:white;text-align:center}.sig{margin-top:30px;text-align:right}.ft{margin-top:15px;text-align:center;font-size:10px;color:#999}@media print{body{margin:8px}}</style>
@@ -238,20 +206,22 @@ const Reports = () => {
 </div>
 <div style="margin-bottom:12px">
   <h3 style="color:#007bff;margin-bottom:6px">IDENTITAS PENGAWAS</h3>
-  <table style="border:none"><tr><td style="width:150px;border:none"><strong>Nama Pengawas</strong></td><td style="border:none">: ${esc(user.full_name || user.email)}</td></tr>
-  <tr><td style="border:none"><strong>NIP</strong></td><td style="border:none">: ${esc(user.nip)}</td></tr>
-  <tr><td style="border:none"><strong>Pangkat/Golongan</strong></td><td style="border:none">: ${esc(user.pangkat)}</td></tr>
-  <tr><td style="border:none"><strong>Jabatan</strong></td><td style="border:none">: ${esc(user.position || 'Pengawas Sekolah')}</td></tr>
-  <tr><td style="border:none"><strong>Unit Kerja</strong></td><td style="border:none">: ${esc(user.unit_kerja || 'Dinas Pendidikan Provinsi Jawa Barat')}</td></tr></table>
+  <table style="border:none">
+    <tr><td style="width:150px;border:none"><strong>Nama Pengawas</strong></td><td style="border:none">: ${esc(user.full_name || user.email)}</td></tr>
+    <tr><td style="border:none"><strong>NIP</strong></td><td style="border:none">: ${esc(user.nip)}</td></tr>
+    <tr><td style="border:none"><strong>Pangkat/Golongan</strong></td><td style="border:none">: ${esc(user.pangkat)}</td></tr>
+    <tr><td style="border:none"><strong>Jabatan</strong></td><td style="border:none">: ${esc(user.position || 'Pengawas Sekolah')}</td></tr>
+    <tr><td style="border:none"><strong>Unit Kerja</strong></td><td style="border:none">: ${esc(user.unit_kerja || 'Dinas Pendidikan Provinsi Jawa Barat')}</td></tr>
+  </table>
 </div>
 <div class="bl"></div>
 <div style="text-align:center;margin-bottom:12px">
   <h3 style="color:#007bff;margin-bottom:8px">STATISTIK KEGIATAN</h3>
   <div class="sb">
-    <div class="si"><span class="sn">${filteredActivities.length}</span><div class="sl">Aktivitas</div></div>
-    <div class="si"><span class="sn">${filteredSupervisions.length}</span><div class="sl">Supervisi</div></div>
-    <div class="si"><span class="sn">${filteredTasks.length}</span><div class="sl">Tugas Tambahan</div></div>
-    <div class="si"><span class="sn">${filteredActivities.length + filteredSupervisions.length + filteredTasks.length}</span><div class="sl">Total</div></div>
+    <div class="si"><span class="sn">${acts.length}</span><div class="sl">Aktivitas</div></div>
+    <div class="si"><span class="sn">${sups.length}</span><div class="sl">Supervisi</div></div>
+    <div class="si"><span class="sn">${tsks.length}</span><div class="sl">Tugas Tambahan</div></div>
+    <div class="si"><span class="sn">${acts.length + sups.length + tsks.length}</span><div class="sl">Total</div></div>
   </div>
 </div>
 <div class="bl"></div>
@@ -268,7 +238,6 @@ ${photoHtml}
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, '_blank');
-
       if (!win) {
         const a = document.createElement('a');
         a.href = url;
@@ -276,13 +245,11 @@ ${photoHtml}
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        toast.success("Laporan diunduh! Buka file untuk mencetak.");
+        toast.success("Laporan diunduh!");
       } else {
-        // Kurangi timeout dari 1000ms ke 300ms
         setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 300);
         toast.success("Laporan siap!");
       }
-
     } catch (error: any) {
       toast.error(`Gagal membuat laporan: ${error.message || 'Terjadi kesalahan'}`);
     } finally {
@@ -344,7 +311,7 @@ ${photoHtml}
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 12 }, (_, i) => (
-                          <SelectItem key={i+1} value={(i+1).toString()}>
+                          <SelectItem key={i + 1} value={(i + 1).toString()}>
                             {new Date(2024, i).toLocaleDateString('id-ID', { month: 'long' })}
                           </SelectItem>
                         ))}
@@ -410,7 +377,6 @@ ${photoHtml}
                 <p className="text-muted-foreground">Tidak ada data untuk periode ini</p>
               ) : (
                 <div className="space-y-2">
-                  {/* Tampilkan dengan urutan: Aktivitas, Supervisi, Tugas Tambahan, lainnya */}
                   {['Aktivitas', 'Supervisi', 'Tugas Tambahan'].map((cat) => {
                     const count = reportData.activitiesByCategory[cat];
                     if (!count) return null;
@@ -421,15 +387,6 @@ ${photoHtml}
                       </div>
                     );
                   })}
-                  {/* Tampilkan kategori lain yang tidak ada di list di atas */}
-                  {Object.entries(reportData.activitiesByCategory)
-                    .filter(([cat]) => !['Aktivitas', 'Supervisi', 'Tugas Tambahan'].includes(cat))
-                    .map(([category, count]) => (
-                      <div key={category} className="flex items-center justify-between p-2 rounded-lg bg-muted">
-                        <span className="font-medium">{category}</span>
-                        <Badge variant="outline">{count} kegiatan</Badge>
-                      </div>
-                    ))}
                 </div>
               )}
             </CardContent>
