@@ -11,10 +11,15 @@ import { FileText, Download, Calendar, BarChart3, TrendingUp, Printer } from "lu
 import { Badge } from "@/components/ui/badge";
 
 interface ReportData {
+  // Total keseluruhan (semua data, tidak difilter periode)
   totalActivities: number;
   totalSupervisions: number;
   totalSchools: number;
   totalTasks: number;
+  // Data periode yang dipilih
+  periodActivities: number;
+  periodSupervisions: number;
+  periodTasks: number;
   activitiesByMonth: { [key: string]: number };
   activitiesByCategory: { [key: string]: number };
   schoolsWithActivities: number;
@@ -35,6 +40,9 @@ const Reports = () => {
     totalSupervisions: 0,
     totalSchools: 0,
     totalTasks: 0,
+    periodActivities: 0,
+    periodSupervisions: 0,
+    periodTasks: 0,
     activitiesByMonth: {},
     activitiesByCategory: {},
     schoolsWithActivities: 0,
@@ -109,10 +117,15 @@ const Reports = () => {
       });
 
       setReportData({
-        totalActivities: filteredActivities.length,
-        totalSupervisions: filteredSupervisions.length,
+        // Total keseluruhan semua data
+        totalActivities: allActivities.length,
+        totalSupervisions: allSupervisions.length,
         totalSchools: allSchools.length,
-        totalTasks: filteredTasks.length,
+        totalTasks: allTasks.length,
+        // Data periode yang dipilih
+        periodActivities: filteredActivities.length,
+        periodSupervisions: filteredSupervisions.length,
+        periodTasks: filteredTasks.length,
         activitiesByMonth,
         activitiesByCategory,
         schoolsWithActivities: schoolsSet.size,
@@ -262,10 +275,10 @@ ${photoHtml}
   };
 
   const statCards = [
-    { title: "Total Aktivitas", value: reportData.totalActivities, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
-    { title: "Total Supervisi", value: reportData.totalSupervisions, icon: FileText, color: "text-green-600", bgColor: "bg-green-100" },
-    { title: "Sekolah Didampingi", value: `${reportData.schoolsWithActivities}/${reportData.totalSchools}`, icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-100" },
-    { title: "Tugas Tambahan", value: reportData.totalTasks, icon: Calendar, color: "text-orange-600", bgColor: "bg-orange-100" },
+    { title: "Total Aktivitas", value: reportData.totalActivities, sub: `${reportData.periodActivities} periode ini`, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
+    { title: "Total Supervisi", value: reportData.totalSupervisions, sub: `${reportData.periodSupervisions} periode ini`, icon: FileText, color: "text-green-600", bgColor: "bg-green-100" },
+    { title: "Sekolah Dampingan", value: reportData.totalSchools, sub: `${reportData.schoolsWithActivities} aktif periode ini`, icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-100" },
+    { title: "Tugas Tambahan", value: reportData.totalTasks, sub: `${reportData.periodTasks} periode ini`, icon: Calendar, color: "text-orange-600", bgColor: "bg-orange-100" },
   ];
 
   return (
@@ -345,6 +358,7 @@ ${photoHtml}
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stat.value}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
                 </CardContent>
               </Card>
             ))}
