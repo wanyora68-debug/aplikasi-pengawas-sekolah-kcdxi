@@ -81,9 +81,32 @@ const Reports = () => {
       const allSchools = schRes.status === 'fulfilled' ? schRes.value.data || [] : [];
       const allTasks = taskRes.status === 'fulfilled' ? taskRes.value.data || [] : [];
 
-      const filteredActivities = allActivities.filter((a: any) => a.date >= startDate && a.date <= endDate);
-      const filteredSupervisions = allSupervisions.filter((s: any) => s.date >= startDate && s.date <= endDate);
-      const filteredTasks = allTasks.filter((t: any) => t.date >= startDate && t.date <= endDate);
+      console.log("=== REPORTS DEBUG ===");
+      console.log("startDate:", startDate, "endDate:", endDate);
+      console.log("allActivities count:", allActivities.length);
+      if (allActivities.length > 0) {
+        console.log("Sample activity date:", allActivities[0].date, "type:", typeof allActivities[0].date);
+      }
+
+      // Normalisasi tanggal ke format YYYY-MM-DD untuk perbandingan yang konsisten
+      const normalizeDate = (d: string) => d ? d.substring(0, 10) : '';
+
+      const filteredActivities = allActivities.filter((a: any) => {
+        const d = normalizeDate(a.date);
+        return d >= startDate && d <= endDate;
+      });
+      const filteredSupervisions = allSupervisions.filter((s: any) => {
+        const d = normalizeDate(s.date);
+        return d >= startDate && d <= endDate;
+      });
+      const filteredTasks = allTasks.filter((t: any) => {
+        const d = normalizeDate(t.date);
+        return d >= startDate && d <= endDate;
+      });
+
+      console.log("filteredActivities:", filteredActivities.length);
+      console.log("filteredSupervisions:", filteredSupervisions.length);
+      console.log("filteredTasks:", filteredTasks.length);
 
       // Simpan ke cache - dipakai saat cetak tanpa fetch ulang
       dataCache = { user, filteredActivities, filteredSupervisions, filteredTasks, allSchools };

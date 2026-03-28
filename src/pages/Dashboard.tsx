@@ -3,7 +3,7 @@ import { auth, activities, supervisions, tasks, schools } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, School, FileText, TrendingUp, User, Eye, BarChart3 } from "lucide-react";
+import { Activity, School, FileText, User, Eye, BarChart3 } from "lucide-react";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -29,10 +29,6 @@ const Dashboard = () => {
     const { user } = await auth.getUser();
     if (!user) return;
 
-    console.log("=== DASHBOARD FETCH STATS ===");
-    console.log("User ID:", user.id, "Email:", user.email);
-
-    // Gunakan try/catch per fetch seperti di Reports yang sudah terbukti benar
     let totalActivities = 0;
     let totalSupervisions = 0;
     let totalTasks = 0;
@@ -41,25 +37,21 @@ const Dashboard = () => {
     try {
       const res = await activities.getAll(user.id);
       totalActivities = res.data?.length || 0;
-      console.log("Activities:", totalActivities, res.error);
     } catch (e) { console.warn("Activities fetch failed:", e); }
 
     try {
       const res = await supervisions.getAll(user.id);
       totalSupervisions = res.data?.length || 0;
-      console.log("Supervisions:", totalSupervisions);
     } catch (e) { console.warn("Supervisions fetch failed:", e); }
 
     try {
       const res = await tasks.getAll(user.id);
       totalTasks = res.data?.length || 0;
-      console.log("Tasks:", totalTasks);
     } catch (e) { console.warn("Tasks fetch failed:", e); }
 
     try {
       const res = await schools.getAll(user.id);
       totalSchools = res.data?.length || 0;
-      console.log("Schools:", totalSchools);
     } catch (e) { console.warn("Schools fetch failed:", e); }
 
     setStats({
