@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { auth, getStatistics } from "@/lib/database";
+import { auth, activities, supervisions, tasks, schools } from "@/lib/database";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, School, FileText, TrendingUp, User } from "lucide-react";
+import { Activity, School, FileText, TrendingUp, User, Eye, BarChart3 } from "lucide-react";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
+    totalAll: 0,
     totalActivities: 0,
-    totalSchools: 0,
+    totalSupervisions: 0,
     totalTasks: 0,
-    activitiesThisMonth: 0,
+    totalSchools: 0,
   });
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -21,48 +22,40 @@ const Dashboard = () => {
 
   const fetchUser = async () => {
     const { user } = await auth.getUser();
-    if (user) {
-      setCurrentUser(user);
-    }
+    if (user) setCurrentUser(user);
   };
 
   const fetchStats = async () => {
     const { user } = await auth.getUser();
     if (!user) return;
 
-    const statistics = await getStatistics(user.id);
-    setStats(statistics);
+    const [actRes, supRes, taskRes, schRes] = await Promise.allSettled([
+      activities.getAll(user.id),
+      supervisions.getAll(user.id),
+      tasks.getAll(user.id),
+      schools.getAll(user.id),
+    ]);
+
+    const totalActivities = actRes.status === 'fulfilled' ? actRes.value.data?.length || 0 : 0;
+    const totalSupervisions = supRes.status === 'fulfilled' ? supRes.value.data?.length || 0 : 0;
+    const totalTasks = taskRes.status === 'fulfilled' ? taskRes.value.data?.length || 0 : 0;
+    const totalSchools = schRes.status === 'fulfilled' ? schRes.value.data?.length || 0 : 0;
+
+    setStats({
+      totalAll: totalActivities + totalSupervisions + totalTasks,
+      totalActivities,
+      totalSupervisions,
+      totalTasks,
+      totalSchools,
+    });
   };
 
   const statCards = [
-    {
-      title: "Total Aktivitas",
-      value: stats.totalActivities,
-      icon: Activity,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-    },
-    {
-      title: "Sekolah Dampingan",
-      value: stats.totalSchools,
-      icon: School,
-      color: "text-secondary",
-      bgColor: "bg-secondary/10",
-    },
-    {
-      title: "Tugas Tambahan",
-      value: stats.totalTasks,
-      icon: FileText,
-      color: "text-accent",
-      bgColor: "bg-accent",
-    },
-    {
-      title: "Aktivitas Bulan Ini",
-      value: stats.activitiesThisMonth,
-      icon: TrendingUp,
-      color: "text-success",
-      bgColor: "bg-success/10",
-    },
+    { title: "Total Semua Kegiatan", value: stats.totalAll, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
+    { title: "Aktivitas Pendampingan", value: stats.totalActivities, icon: Activity, color: "text-primary", bgColor: "bg-primary/10" },
+    { title: "Supervisi", value: stats.totalSupervisions, icon: Eye, color: "text-green-600", bgColor: "bg-green-100" },
+    { title: "Tugas Tambahan", value: stats.totalTasks, icon: FileText, color: "text-orange-600", bgColor: "bg-orange-100" },
+    { title: "Sekolah Dampingan", value: stats.totalSchools, icon: School, color: "text-purple-600", bgColor: "bg-purple-100" },
   ];
 
   return (
@@ -92,7 +85,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
             {statCards.map((stat) => (
               <Card key={stat.title}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

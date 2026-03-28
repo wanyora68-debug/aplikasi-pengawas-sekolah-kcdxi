@@ -11,20 +11,14 @@ import { FileText, Download, Calendar, BarChart3, TrendingUp, Printer, Clipboard
 import { Badge } from "@/components/ui/badge";
 
 interface ReportData {
-  // Total keseluruhan (semua data, tidak difilter periode)
-  totalActivities: number;      // aktivitas pendampingan saja
-  totalSupervisions: number;    // supervisi saja
-  totalTasks: number;           // tugas tambahan saja
-  totalAll: number;             // semua kegiatan (activities + supervisions + tasks)
-  totalSchools: number;
-  // Data periode yang dipilih
   periodActivities: number;
   periodSupervisions: number;
   periodTasks: number;
   periodAll: number;
+  totalSchools: number;
+  schoolsWithActivities: number;
   activitiesByMonth: { [key: string]: number };
   activitiesByCategory: { [key: string]: number };
-  schoolsWithActivities: number;
 }
 
 // Cache data yang sudah di-fetch agar cetak tidak perlu fetch ulang
@@ -38,18 +32,14 @@ let dataCache: {
 
 const Reports = () => {
   const [reportData, setReportData] = useState<ReportData>({
-    totalActivities: 0,
-    totalSupervisions: 0,
-    totalTasks: 0,
-    totalAll: 0,
-    totalSchools: 0,
     periodActivities: 0,
     periodSupervisions: 0,
     periodTasks: 0,
     periodAll: 0,
+    totalSchools: 0,
+    schoolsWithActivities: 0,
     activitiesByMonth: {},
     activitiesByCategory: {},
-    schoolsWithActivities: 0,
   });
 
   const [loading, setLoading] = useState(false);
@@ -121,20 +111,14 @@ const Reports = () => {
       });
 
       setReportData({
-        // Total keseluruhan semua data
-        totalActivities: allActivities.length,
-        totalSupervisions: allSupervisions.length,
-        totalTasks: allTasks.length,
-        totalAll: allActivities.length + allSupervisions.length + allTasks.length,
-        totalSchools: allSchools.length,
-        // Data periode yang dipilih
         periodActivities: filteredActivities.length,
         periodSupervisions: filteredSupervisions.length,
         periodTasks: filteredTasks.length,
         periodAll: filteredActivities.length + filteredSupervisions.length + filteredTasks.length,
+        totalSchools: allSchools.length,
+        schoolsWithActivities: schoolsSet.size,
         activitiesByMonth,
         activitiesByCategory,
-        schoolsWithActivities: schoolsSet.size,
       });
 
     } catch (error: any) {
@@ -280,47 +264,16 @@ ${photoHtml}
     }
   };
 
+  const periodLabel = reportType === 'monthly'
+    ? new Date(selectedYear, selectedMonth - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+    : `Tahun ${selectedYear}`;
+
   const statCards = [
-    {
-      title: "Total Semua Kegiatan",
-      value: reportData.totalAll,
-      sub: `${reportData.periodAll} kegiatan periode ini`,
-      icon: BarChart3,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100"
-    },
-    {
-      title: "Aktivitas Pendampingan",
-      value: reportData.totalActivities,
-      sub: `${reportData.periodActivities} periode ini`,
-      icon: ClipboardList,
-      color: "text-indigo-600",
-      bgColor: "bg-indigo-100"
-    },
-    {
-      title: "Supervisi",
-      value: reportData.totalSupervisions,
-      sub: `${reportData.periodSupervisions} periode ini`,
-      icon: FileText,
-      color: "text-green-600",
-      bgColor: "bg-green-100"
-    },
-    {
-      title: "Tugas Tambahan",
-      value: reportData.totalTasks,
-      sub: `${reportData.periodTasks} periode ini`,
-      icon: Calendar,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100"
-    },
-    {
-      title: "Sekolah Dampingan",
-      value: reportData.totalSchools,
-      sub: `${reportData.schoolsWithActivities} aktif periode ini`,
-      icon: TrendingUp,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100"
-    },
+    { title: "Total Kegiatan", value: reportData.periodAll, sub: periodLabel, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
+    { title: "Aktivitas Pendampingan", value: reportData.periodActivities, sub: periodLabel, icon: ClipboardList, color: "text-indigo-600", bgColor: "bg-indigo-100" },
+    { title: "Supervisi", value: reportData.periodSupervisions, sub: periodLabel, icon: FileText, color: "text-green-600", bgColor: "bg-green-100" },
+    { title: "Tugas Tambahan", value: reportData.periodTasks, sub: periodLabel, icon: Calendar, color: "text-orange-600", bgColor: "bg-orange-100" },
+    { title: "Sekolah Dampingan", value: reportData.totalSchools, sub: `${reportData.schoolsWithActivities} aktif ${periodLabel}`, icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-100" },
   ];
 
   return (
