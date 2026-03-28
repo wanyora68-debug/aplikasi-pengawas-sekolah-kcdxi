@@ -44,11 +44,10 @@ const Reports = () => {
     setLoading(true);
     try {
       const { user } = await auth.getUser();
-      if (!user) return;
-
-      console.log("=== REPORTS FETCH DEBUG ===");
-      console.log("Fetching report data for user:", user.id);
-      console.log("Report type:", reportType, "Month:", selectedMonth, "Year:", selectedYear);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       let startDate: string, endDate: string;
       
@@ -60,95 +59,69 @@ const Reports = () => {
         endDate = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
       }
 
-      console.log("Date range:", startDate, "to", endDate);
+      // Fetch data satu per satu - jangan throw jika salah satu gagal
+      let allActivities: any[] = [];
+      let allSupervisions: any[] = [];
+      let allSchools: any[] = [];
+      let allTasks: any[] = [];
 
-      // Fetch data from Supabase
-      const [activitiesRes, supervisionsRes, schoolsRes, tasksRes] = await Promise.all([
-        activities.getAll(user.id),
-        supervisions.getAll(user.id),
-        schools.getAll(user.id),
-        tasks.getAll(user.id),
-      ]);
+      try {
+        const res = await activities.getAll(user.id);
+        allActivities = res.data || [];
+      } catch (e) { console.warn("Activities fetch failed:", e); }
 
-      if (activitiesRes.error || supervisionsRes.error || schoolsRes.error || tasksRes.error) {
-        throw new Error("Failed to fetch data");
-      }
+      try {
+        const res = await supervisions.getAll(user.id);
+        allSupervisions = res.data || [];
+      } catch (e) { console.warn("Supervisions fetch failed:", e); }
 
-      const allActivities = activitiesRes.data || [];
-      const allSupervisions = supervisionsRes.data || [];
-      const allSchools = schoolsRes.data || [];
-      const allTasks = tasksRes.data || [];
+      try {
+        const res = await schools.getAll(user.id);
+        allSchools = res.data || [];
+      } catch (e) { console.warn("Schools fetch failed:", e); }
 
-      console.log("Fetched data:", {
-        activities: allActivities.length,
-        supervisions: allSupervisions.length,
-        schools: allSchools.length,
-        tasks: allTasks.length
-      });
+      try {
+        const res = await tasks.getAll(user.id);
+        allTasks = res.data || [];
+      } catch (e) { console.warn("Tasks fetch failed:", e); }
 
       // Filter by date range
       const filteredActivities = allActivities.filter(a => 
         a.date >= startDate && a.date <= endDate
       );
-      
       const filteredSupervisions = allSupervisions.filter(s => 
         s.date >= startDate && s.date <= endDate
       );
-
       const filteredTasks = allTasks.filter(t => 
         t.date >= startDate && t.date <= endDate
       );
 
-      console.log("Filtered data:", {
-        activities: filteredActivities.length,
-        supervisions: filteredSupervisions.length,
-        tasks: filteredTasks.length
-      });
-
       // Process data
       const activitiesByMonth: { [key: string]: number } = {};
       const activitiesByCategory: { [key: string]: number } = {};
-      const schoolsWithActivitiesSet = new Set();
+      const schoolsWithActivitiesSet = new Set<string>();
 
-      // Process activities
-      filteredActivities.forEach((activity) => {
-        const month = new Date(activity.date).toLocaleDateString('id-ID', { 
-          year: 'numeric', 
-          month: 'long' 
-        });
+      filteredActivities.forEach((activity: any) => {
+        const month = new Date(activity.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[month] = (activitiesByMonth[month] || 0) + 1;
         activitiesByCategory[activity.category] = (activitiesByCategory[activity.category] || 0) + 1;
-        
-        if (activity.school_id) {
-          schoolsWithActivitiesSet.add(activity.school_id);
-        }
+        if (activity.school_id) schoolsWithActivitiesSet.add(activity.school_id);
       });
 
-      // Process supervisions
-      filteredSupervisions.forEach((supervision) => {
-        const month = new Date(supervision.date).toLocaleDateString('id-ID', { 
-          year: 'numeric', 
-          month: 'long' 
-        });
+      filteredSupervisions.forEach((supervision: any) => {
+        const month = new Date(supervision.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[month] = (activitiesByMonth[month] || 0) + 1;
         activitiesByCategory['Supervisi'] = (activitiesByCategory['Supervisi'] || 0) + 1;
-        
-        if (supervision.school_id) {
-          schoolsWithActivitiesSet.add(supervision.school_id);
-        }
+        if (supervision.school_id) schoolsWithActivitiesSet.add(supervision.school_id);
       });
 
-      // Process tasks
-      filteredTasks.forEach((task) => {
-        const month = new Date(task.date).toLocaleDateString('id-ID', { 
-          year: 'numeric', 
-          month: 'long' 
-        });
+      filteredTasks.forEach((task: any) => {
+        const month = new Date(task.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[month] = (activitiesByMonth[month] || 0) + 1;
         activitiesByCategory['Tugas Tambahan'] = (activitiesByCategory['Tugas Tambahan'] || 0) + 1;
       });
 
-      const reportData = {
+      setReportData({
         totalActivities: filteredActivities.length,
         totalSupervisions: filteredSupervisions.length,
         totalSchools: allSchools.length,
@@ -156,14 +129,11 @@ const Reports = () => {
         activitiesByMonth,
         activitiesByCategory,
         schoolsWithActivities: schoolsWithActivitiesSet.size,
-      };
-
-      console.log("Final report data:", reportData);
-      setReportData(reportData);
+      });
 
     } catch (error: any) {
       console.error("Report fetch error:", error);
-      toast.error("Gagal memuat data laporan");
+      toast.error("Gagal memuat data laporan: " + (error.message || 'Coba refresh halaman'));
     } finally {
       setLoading(false);
     }
