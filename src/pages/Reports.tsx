@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { FileText, Download, Calendar, BarChart3, TrendingUp, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { logoCadisdikXI } from "@/assets/logo-cadisdik-xi";
 
 interface ReportData {
   totalActivities: number;
@@ -300,6 +301,9 @@ const Reports = () => {
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; font-size: 12px; color: #333; }
     .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #007bff; padding-bottom: 15px; }
+    .header-inner { display: flex; align-items: center; justify-content: center; gap: 20px; }
+    .header-logo { width: 80px; height: 80px; object-fit: contain; }
+    .header-text { text-align: center; }
     .section { margin-bottom: 20px; }
     .blue-line { height: 2px; background: #007bff; margin: 15px 0; }
     .identity-table td { padding: 5px 8px; vertical-align: top; }
@@ -317,10 +321,16 @@ const Reports = () => {
 </head>
 <body>
   <div class="header">
-    <h1 style="margin:0;font-size:16px;color:#007bff;">LAPORAN AKTIVITAS PENGAWAS SEKOLAH</h1>
-    <h2 style="margin:4px 0;font-size:14px;">Dinas Pendidikan Provinsi Jawa Barat</h2>
-    <h3 style="margin:4px 0;font-size:13px;">Cabang Dinas Pendidikan Wilayah XI</h3>
-    <p style="margin:8px 0;font-size:13px;"><strong>Periode: ${periodText}</strong></p>
+    <div class="header-inner">
+      <img src="${logoCadisdikXI}" class="header-logo" alt="Logo Cadisdik XI" />
+      <div class="header-text">
+        <h1 style="margin:0;font-size:16px;color:#007bff;">LAPORAN AKTIVITAS PENGAWAS SEKOLAH</h1>
+        <h2 style="margin:4px 0;font-size:14px;">Dinas Pendidikan Provinsi Jawa Barat</h2>
+        <h3 style="margin:4px 0;font-size:13px;">Cabang Dinas Pendidikan Wilayah XI</h3>
+        <p style="margin:8px 0;font-size:13px;"><strong>Periode: ${periodText}</strong></p>
+      </div>
+      <img src="${logoCadisdikXI}" class="header-logo" alt="Logo Cadisdik XI" />
+    </div>
   </div>
 
   <div class="section">
