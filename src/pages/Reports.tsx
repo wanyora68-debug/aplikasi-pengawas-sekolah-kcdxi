@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { FileText, Download, Calendar, BarChart3, TrendingUp, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { logoCadisdikXI } from "@/assets/logo-cadisdik-xi";
 
 interface ReportData {
   totalActivities: number;
@@ -293,6 +292,9 @@ const Reports = () => {
 
       const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
+      // Logo URL - dari folder public
+      const logoUrl = `${window.location.origin}/logo-cadisdik-xi.png`;
+
       const htmlContent = `<!DOCTYPE html>
 <html>
 <head>
@@ -322,14 +324,14 @@ const Reports = () => {
 <body>
   <div class="header">
     <div class="header-inner">
-      <img src="${logoCadisdikXI}" class="header-logo" alt="Logo Cadisdik XI" />
+      <img src="${logoUrl}" class="header-logo" alt="Logo Cadisdik XI" />
       <div class="header-text">
         <h1 style="margin:0;font-size:16px;color:#007bff;">LAPORAN AKTIVITAS PENGAWAS SEKOLAH</h1>
         <h2 style="margin:4px 0;font-size:14px;">Dinas Pendidikan Provinsi Jawa Barat</h2>
         <h3 style="margin:4px 0;font-size:13px;">Cabang Dinas Pendidikan Wilayah XI</h3>
         <p style="margin:8px 0;font-size:13px;"><strong>Periode: ${periodText}</strong></p>
       </div>
-      <img src="${logoCadisdikXI}" class="header-logo" alt="Logo Cadisdik XI" />
+      <img src="${logoUrl}" class="header-logo" alt="Logo Cadisdik XI" />
     </div>
   </div>
 
