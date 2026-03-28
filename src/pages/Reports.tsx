@@ -270,7 +270,7 @@ ${photoHtml}
 
   const statCards = [
     { title: "Total Kegiatan", value: reportData.periodAll, sub: periodLabel, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
-    { title: "Aktivitas Pendampingan", value: reportData.periodActivities, sub: periodLabel, icon: ClipboardList, color: "text-indigo-600", bgColor: "bg-indigo-100" },
+    { title: "Aktivitas", value: reportData.periodActivities, sub: periodLabel, icon: ClipboardList, color: "text-indigo-600", bgColor: "bg-indigo-100" },
     { title: "Supervisi", value: reportData.periodSupervisions, sub: periodLabel, icon: FileText, color: "text-green-600", bgColor: "bg-green-100" },
     { title: "Tugas Tambahan", value: reportData.periodTasks, sub: periodLabel, icon: Calendar, color: "text-orange-600", bgColor: "bg-orange-100" },
     { title: "Sekolah Dampingan", value: reportData.totalSchools, sub: `${reportData.schoolsWithActivities} aktif ${periodLabel}`, icon: TrendingUp, color: "text-purple-600", bgColor: "bg-purple-100" },

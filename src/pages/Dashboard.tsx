@@ -32,24 +32,35 @@ const Dashboard = () => {
     console.log("=== DASHBOARD FETCH STATS ===");
     console.log("User ID:", user.id, "Email:", user.email);
 
-    const [actRes, supRes, taskRes, schRes] = await Promise.allSettled([
-      activities.getAll(user.id),
-      supervisions.getAll(user.id),
-      tasks.getAll(user.id),
-      schools.getAll(user.id),
-    ]);
+    // Gunakan try/catch per fetch seperti di Reports yang sudah terbukti benar
+    let totalActivities = 0;
+    let totalSupervisions = 0;
+    let totalTasks = 0;
+    let totalSchools = 0;
 
-    console.log("Activities result:", actRes.status, actRes.status === 'fulfilled' ? actRes.value.data?.length : actRes.reason);
-    console.log("Supervisions result:", supRes.status, supRes.status === 'fulfilled' ? supRes.value.data?.length : supRes.reason);
-    console.log("Tasks result:", taskRes.status, taskRes.status === 'fulfilled' ? taskRes.value.data?.length : taskRes.reason);
-    console.log("Schools result:", schRes.status, schRes.status === 'fulfilled' ? schRes.value.data?.length : schRes.reason);
+    try {
+      const res = await activities.getAll(user.id);
+      totalActivities = res.data?.length || 0;
+      console.log("Activities:", totalActivities, res.error);
+    } catch (e) { console.warn("Activities fetch failed:", e); }
 
-    const totalActivities = actRes.status === 'fulfilled' ? actRes.value.data?.length || 0 : 0;
-    const totalSupervisions = supRes.status === 'fulfilled' ? supRes.value.data?.length || 0 : 0;
-    const totalTasks = taskRes.status === 'fulfilled' ? taskRes.value.data?.length || 0 : 0;
-    const totalSchools = schRes.status === 'fulfilled' ? schRes.value.data?.length || 0 : 0;
+    try {
+      const res = await supervisions.getAll(user.id);
+      totalSupervisions = res.data?.length || 0;
+      console.log("Supervisions:", totalSupervisions);
+    } catch (e) { console.warn("Supervisions fetch failed:", e); }
 
-    console.log("Stats:", { totalActivities, totalSupervisions, totalTasks, totalSchools });
+    try {
+      const res = await tasks.getAll(user.id);
+      totalTasks = res.data?.length || 0;
+      console.log("Tasks:", totalTasks);
+    } catch (e) { console.warn("Tasks fetch failed:", e); }
+
+    try {
+      const res = await schools.getAll(user.id);
+      totalSchools = res.data?.length || 0;
+      console.log("Schools:", totalSchools);
+    } catch (e) { console.warn("Schools fetch failed:", e); }
 
     setStats({
       totalAll: totalActivities + totalSupervisions + totalTasks,
@@ -62,7 +73,7 @@ const Dashboard = () => {
 
   const statCards = [
     { title: "Total Semua Kegiatan", value: stats.totalAll, icon: BarChart3, color: "text-blue-600", bgColor: "bg-blue-100" },
-    { title: "Aktivitas Pendampingan", value: stats.totalActivities, icon: Activity, color: "text-primary", bgColor: "bg-primary/10" },
+    { title: "Aktivitas", value: stats.totalActivities, icon: Activity, color: "text-primary", bgColor: "bg-primary/10" },
     { title: "Supervisi", value: stats.totalSupervisions, icon: Eye, color: "text-green-600", bgColor: "bg-green-100" },
     { title: "Tugas Tambahan", value: stats.totalTasks, icon: FileText, color: "text-orange-600", bgColor: "bg-orange-100" },
     { title: "Sekolah Dampingan", value: stats.totalSchools, icon: School, color: "text-purple-600", bgColor: "bg-purple-100" },
