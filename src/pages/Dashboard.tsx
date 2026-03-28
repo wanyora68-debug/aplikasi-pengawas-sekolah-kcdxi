@@ -29,6 +29,9 @@ const Dashboard = () => {
     const { user } = await auth.getUser();
     if (!user) return;
 
+    console.log("=== DASHBOARD FETCH STATS ===");
+    console.log("User ID:", user.id, "Email:", user.email);
+
     const [actRes, supRes, taskRes, schRes] = await Promise.allSettled([
       activities.getAll(user.id),
       supervisions.getAll(user.id),
@@ -36,10 +39,17 @@ const Dashboard = () => {
       schools.getAll(user.id),
     ]);
 
+    console.log("Activities result:", actRes.status, actRes.status === 'fulfilled' ? actRes.value.data?.length : actRes.reason);
+    console.log("Supervisions result:", supRes.status, supRes.status === 'fulfilled' ? supRes.value.data?.length : supRes.reason);
+    console.log("Tasks result:", taskRes.status, taskRes.status === 'fulfilled' ? taskRes.value.data?.length : taskRes.reason);
+    console.log("Schools result:", schRes.status, schRes.status === 'fulfilled' ? schRes.value.data?.length : schRes.reason);
+
     const totalActivities = actRes.status === 'fulfilled' ? actRes.value.data?.length || 0 : 0;
     const totalSupervisions = supRes.status === 'fulfilled' ? supRes.value.data?.length || 0 : 0;
     const totalTasks = taskRes.status === 'fulfilled' ? taskRes.value.data?.length || 0 : 0;
     const totalSchools = schRes.status === 'fulfilled' ? schRes.value.data?.length || 0 : 0;
+
+    console.log("Stats:", { totalActivities, totalSupervisions, totalTasks, totalSchools });
 
     setStats({
       totalAll: totalActivities + totalSupervisions + totalTasks,
