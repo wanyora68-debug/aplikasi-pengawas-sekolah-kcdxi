@@ -118,7 +118,8 @@ const Reports = () => {
       filteredActivities.forEach((a: any) => {
         const m = new Date(a.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
         activitiesByMonth[m] = (activitiesByMonth[m] || 0) + 1;
-        activitiesByCategory[a.category] = (activitiesByCategory[a.category] || 0) + 1;
+        // Kelompokkan semua aktivitas dari tabel activities sebagai "Aktivitas"
+        activitiesByCategory['Aktivitas'] = (activitiesByCategory['Aktivitas'] || 0) + 1;
         if (a.school_id) schoolsSet.add(a.school_id);
       });
       filteredSupervisions.forEach((s: any) => {
@@ -143,6 +144,8 @@ const Reports = () => {
         activitiesByMonth,
         activitiesByCategory,
       });
+
+      console.log("Final stats - activities:", filteredActivities.length, "supervisions:", filteredSupervisions.length, "tasks:", filteredTasks.length);
 
     } catch (error: any) {
       toast.error("Gagal memuat data: " + (error.message || 'Coba refresh halaman'));
@@ -407,12 +410,26 @@ ${photoHtml}
                 <p className="text-muted-foreground">Tidak ada data untuk periode ini</p>
               ) : (
                 <div className="space-y-2">
-                  {Object.entries(reportData.activitiesByCategory).map(([category, count]) => (
-                    <div key={category} className="flex items-center justify-between p-2 rounded-lg bg-muted">
-                      <span className="font-medium">{category}</span>
-                      <Badge variant="outline">{count} kegiatan</Badge>
-                    </div>
-                  ))}
+                  {/* Tampilkan dengan urutan: Aktivitas, Supervisi, Tugas Tambahan, lainnya */}
+                  {['Aktivitas', 'Supervisi', 'Tugas Tambahan'].map((cat) => {
+                    const count = reportData.activitiesByCategory[cat];
+                    if (!count) return null;
+                    return (
+                      <div key={cat} className="flex items-center justify-between p-2 rounded-lg bg-muted">
+                        <span className="font-medium">{cat}</span>
+                        <Badge variant="outline">{count} kegiatan</Badge>
+                      </div>
+                    );
+                  })}
+                  {/* Tampilkan kategori lain yang tidak ada di list di atas */}
+                  {Object.entries(reportData.activitiesByCategory)
+                    .filter(([cat]) => !['Aktivitas', 'Supervisi', 'Tugas Tambahan'].includes(cat))
+                    .map(([category, count]) => (
+                      <div key={category} className="flex items-center justify-between p-2 rounded-lg bg-muted">
+                        <span className="font-medium">{category}</span>
+                        <Badge variant="outline">{count} kegiatan</Badge>
+                      </div>
+                    ))}
                 </div>
               )}
             </CardContent>
