@@ -172,16 +172,18 @@ const Reports = () => {
   const generateReport = async () => {
     try {
       const { user } = await auth.getUser();
-      if (!user) return;
+      if (!user) {
+        toast.error("Silakan login terlebih dahulu");
+        return;
+      }
 
-      console.log("=== GENERATING REPORT ===");
+      toast.info("Sedang menyiapkan laporan...");
 
       const periodText = reportType === 'monthly' 
         ? `${new Date(selectedYear, selectedMonth - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
         : `Tahun ${selectedYear}`;
 
-      // Get date range
-      let startDate, endDate;
+      let startDate: string, endDate: string;
       if (reportType === 'monthly') {
         startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString().split('T')[0];
         endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
@@ -190,323 +192,221 @@ const Reports = () => {
         endDate = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
       }
 
-      // Fetch all data
-      const [activitiesRes, supervisionsRes, schoolsRes, tasksRes] = await Promise.all([
-        activities.getAll(user.id),
-        supervisions.getAll(user.id),
-        schools.getAll(user.id),
-        tasks.getAll(user.id),
-      ]);
+      // Fetch data satu per satu untuk menghindari error
+      let allActivities: any[] = [];
+      let allSupervisions: any[] = [];
+      let allSchools: any[] = [];
+      let allTasks: any[] = [];
 
-      const allActivities = activitiesRes.data || [];
-      const allSupervisions = supervisionsRes.data || [];
-      const allSchools = schoolsRes.data || [];
-      const allTasks = tasksRes.data || [];
+      try {
+        const res = await activities.getAll(user.id);
+        allActivities = res.data || [];
+      } catch (e) { console.warn("Activities fetch failed:", e); }
+
+      try {
+        const res = await supervisions.getAll(user.id);
+        allSupervisions = res.data || [];
+      } catch (e) { console.warn("Supervisions fetch failed:", e); }
+
+      try {
+        const res = await schools.getAll(user.id);
+        allSchools = res.data || [];
+      } catch (e) { console.warn("Schools fetch failed:", e); }
+
+      try {
+        const res = await tasks.getAll(user.id);
+        allTasks = res.data || [];
+      } catch (e) { console.warn("Tasks fetch failed:", e); }
 
       // Filter by date range
-      const filteredActivities = allActivities.filter(a => 
-        a.date >= startDate && a.date <= endDate
-      );
-      
-      const filteredSupervisions = allSupervisions.filter(s => 
-        s.date >= startDate && s.date <= endDate
-      );
+      const filteredActivities = allActivities.filter(a => a.date >= startDate && a.date <= endDate);
+      const filteredSupervisions = allSupervisions.filter(s => s.date >= startDate && s.date <= endDate);
+      const filteredTasks = allTasks.filter(t => t.date >= startDate && t.date <= endDate);
 
-      const filteredTasks = allTasks.filter(t => 
-        t.date >= startDate && t.date <= endDate
-      );
-
-      console.log("Report data:", {
-        activities: filteredActivities.length,
-        supervisions: filteredSupervisions.length,
-        tasks: filteredTasks.length
+      // Collect photos (max 6)
+      const allPhotos: string[] = [];
+      [...filteredActivities, ...filteredSupervisions, ...filteredTasks].forEach((item: any) => {
+        if (item.photo_url_1 && allPhotos.length < 6) allPhotos.push(item.photo_url_1);
+        if (item.photo_url_2 && allPhotos.length < 6) allPhotos.push(item.photo_url_2);
       });
 
-      // Get all photos
-      const allPhotos = [];
-      filteredActivities.forEach(activity => {
-        if (activity.photo_url_1) allPhotos.push(activity.photo_url_1);
-        if (activity.photo_url_2) allPhotos.push(activity.photo_url_2);
+      // Helper function to escape HTML
+      const esc = (str: any) => String(str || '-').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      // Build table rows
+      let tableRows = '';
+      let rowNum = 1;
+
+      filteredActivities.forEach((activity: any) => {
+        const school = allSchools.find((s: any) => s.id === activity.school_id);
+        tableRows += `<tr>
+          <td style="text-align:center">${rowNum++}</td>
+          <td>${new Date(activity.date).toLocaleDateString('id-ID')}</td>
+          <td>${esc(activity.activity_name)}</td>
+          <td>${esc(activity.category)}</td>
+          <td>${school ? esc(school.name) : 'Tidak ada sekolah'}</td>
+          <td>${esc(activity.notes)}</td>
+        </tr>`;
       });
-      filteredSupervisions.forEach(supervision => {
-        if (supervision.photo_url_1) allPhotos.push(supervision.photo_url_1);
-        if (supervision.photo_url_2) allPhotos.push(supervision.photo_url_2);
+
+      filteredSupervisions.forEach((supervision: any) => {
+        const school = allSchools.find((s: any) => s.id === supervision.school_id);
+        tableRows += `<tr>
+          <td style="text-align:center">${rowNum++}</td>
+          <td>${new Date(supervision.date).toLocaleDateString('id-ID')}</td>
+          <td>${esc(supervision.title)}</td>
+          <td>Supervisi</td>
+          <td>${school ? esc(school.name) : 'Tidak ada sekolah'}</td>
+          <td>${esc(supervision.notes)}</td>
+        </tr>`;
       });
-      filteredTasks.forEach(task => {
-        if (task.photo_url_1) allPhotos.push(task.photo_url_1);
-        if (task.photo_url_2) allPhotos.push(task.photo_url_2);
+
+      filteredTasks.forEach((task: any) => {
+        tableRows += `<tr>
+          <td style="text-align:center">${rowNum++}</td>
+          <td>${new Date(task.date).toLocaleDateString('id-ID')}</td>
+          <td>${esc(task.activity_name)}</td>
+          <td>Tugas Tambahan</td>
+          <td>${esc(task.location)}</td>
+          <td>${esc(task.description)}</td>
+        </tr>`;
       });
 
-      // Create comprehensive PDF-style report
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Laporan Aktivitas Pengawas Sekolah - ${periodText}</title>
-              <style>
-                body { 
-                  font-family: Arial, sans-serif; 
-                  margin: 20px; 
-                  line-height: 1.6;
-                  font-size: 12px;
-                }
-                .header { 
-                  text-align: center; 
-                  margin-bottom: 30px; 
-                  border-bottom: 3px solid #007bff;
-                  padding-bottom: 20px;
-                }
-                .section { 
-                  margin-bottom: 25px; 
-                  page-break-inside: avoid;
-                }
-                .label { 
-                  font-weight: bold; 
-                  color: #333;
-                  display: inline-block;
-                  width: 200px;
-                }
-                .identity-table {
-                  width: 100%;
-                  margin: 20px 0;
-                }
-                .identity-table td {
-                  padding: 8px;
-                  border: none;
-                  vertical-align: top;
-                }
-                .stats-container {
-                  display: flex;
-                  justify-content: center;
-                  margin: 30px 0;
-                }
-                .stats-box {
-                  background-color: #f8f9fa;
-                  border: 2px solid #007bff;
-                  border-radius: 10px;
-                  padding: 20px;
-                  text-align: center;
-                  display: inline-block;
-                }
-                .stats-item {
-                  display: inline-block;
-                  margin: 10px 20px;
-                  text-align: center;
-                }
-                .stats-number {
-                  font-size: 2.5em;
-                  font-weight: bold;
-                  color: #007bff;
-                  display: block;
-                }
-                .stats-label {
-                  font-size: 0.9em;
-                  color: #666;
-                  margin-top: 5px;
-                }
-                table { 
-                  width: 100%; 
-                  border-collapse: collapse; 
-                  margin-top: 15px; 
-                }
-                th, td { 
-                  border: 1px solid #ddd; 
-                  padding: 8px; 
-                  text-align: left; 
-                  vertical-align: top;
-                  font-size: 11px;
-                }
-                th { 
-                  background-color: #007bff; 
-                  color: white;
-                  font-weight: bold;
-                  text-align: center;
-                }
-                .photo-grid {
-                  display: grid;
-                  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                  gap: 10px;
-                  margin-top: 20px;
-                }
-                .photo-item {
-                  text-align: center;
-                }
-                .photo-item img {
-                  max-width: 150px;
-                  max-height: 100px;
-                  border: 1px solid #ddd;
-                  border-radius: 5px;
-                }
-                .photo-caption {
-                  font-size: 10px;
-                  color: #666;
-                  margin-top: 5px;
-                }
-                .signature-section {
-                  margin-top: 50px;
-                  text-align: right;
-                }
-                .blue-line {
-                  height: 3px;
-                  background-color: #007bff;
-                  margin: 20px 0;
-                }
-                @media print {
-                  .page-break { page-break-before: always; }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <h1 style="margin: 0; font-size: 18px; color: #007bff;">LAPORAN AKTIVITAS PENGAWAS SEKOLAH</h1>
-                <h2 style="margin: 5px 0; font-size: 16px;">Dinas Pendidikan Provinsi Jawa Barat</h2>
-                <h3 style="margin: 5px 0; font-size: 14px;">Cabang Dinas Pendidikan Wilayah XI</h3>
-                <p style="margin: 10px 0; font-size: 14px;"><strong>Periode: ${periodText}</strong></p>
-              </div>
-              
-              <div class="blue-line"></div>
-              
-              <div class="section">
-                <h3 style="color: #007bff; margin-bottom: 15px;">IDENTITAS PENGAWAS</h3>
-                <table class="identity-table">
-                  <tr>
-                    <td><span class="label">Nama Pengawas</span></td>
-                    <td>: ${user.full_name || user.email}</td>
-                  </tr>
-                  <tr>
-                    <td><span class="label">NIP</span></td>
-                    <td>: ${user.nip || '-'}</td>
-                  </tr>
-                  <tr>
-                    <td><span class="label">Pangkat/Golongan</span></td>
-                    <td>: ${user.pangkat || '-'}</td>
-                  </tr>
-                  <tr>
-                    <td><span class="label">Jabatan</span></td>
-                    <td>: ${user.position || 'Pengawas Sekolah'}</td>
-                  </tr>
-                  <tr>
-                    <td><span class="label">Unit Kerja</span></td>
-                    <td>: ${user.unit_kerja || 'Dinas Pendidikan Provinsi Jawa Barat'}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <div class="blue-line"></div>
-
-              <div class="section">
-                <h3 style="color: #007bff; text-align: center; margin-bottom: 20px;">STATISTIK KEGIATAN</h3>
-                <div class="stats-container">
-                  <div class="stats-box">
-                    <div class="stats-item">
-                      <span class="stats-number">${filteredActivities.length}</span>
-                      <div class="stats-label">Total Aktivitas</div>
-                    </div>
-                    <div class="stats-item">
-                      <span class="stats-number">${filteredSupervisions.length}</span>
-                      <div class="stats-label">Supervisi</div>
-                    </div>
-                    <div class="stats-item">
-                      <span class="stats-number">${filteredTasks.length}</span>
-                      <div class="stats-label">Tugas Tambahan</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="blue-line"></div>
-
-              <div class="section">
-                <h3 style="color: #007bff; margin-bottom: 15px;">RINGKASAN KEGIATAN</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th style="width: 5%;">No</th>
-                      <th style="width: 12%;">Tanggal</th>
-                      <th style="width: 25%;">Nama Kegiatan</th>
-                      <th style="width: 15%;">Kategori</th>
-                      <th style="width: 20%;">Sekolah/Tempat</th>
-                      <th style="width: 23%;">Hasil/Catatan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${filteredActivities.map((activity, index) => {
-                      const school = allSchools.find(s => s.id === activity.school_id);
-                      return `
-                        <tr>
-                          <td style="text-align: center;">${index + 1}</td>
-                          <td>${new Date(activity.date).toLocaleDateString('id-ID')}</td>
-                          <td>${activity.activity_name}</td>
-                          <td>${activity.category}</td>
-                          <td>${school ? school.name : 'Tidak ada sekolah'}</td>
-                          <td>${activity.notes || '-'}</td>
-                        </tr>
-                      `;
-                    }).join('')}
-                    ${filteredSupervisions.map((supervision, index) => {
-                      const school = allSchools.find(s => s.id === supervision.school_id);
-                      return `
-                        <tr>
-                          <td style="text-align: center;">${filteredActivities.length + index + 1}</td>
-                          <td>${new Date(supervision.date).toLocaleDateString('id-ID')}</td>
-                          <td>${supervision.title}</td>
-                          <td>Supervisi</td>
-                          <td>${school ? school.name : 'Tidak ada sekolah'}</td>
-                          <td>${supervision.notes || '-'}</td>
-                        </tr>
-                      `;
-                    }).join('')}
-                    ${filteredTasks.map((task, index) => `
-                      <tr>
-                        <td style="text-align: center;">${filteredActivities.length + filteredSupervisions.length + index + 1}</td>
-                        <td>${new Date(task.date).toLocaleDateString('id-ID')}</td>
-                        <td>${task.activity_name}</td>
-                        <td>Tugas Tambahan</td>
-                        <td>${task.location}</td>
-                        <td>${task.description}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-
-              ${allPhotos.length > 0 ? `
-                <div class="section page-break">
-                  <h3 style="color: #007bff; margin-bottom: 15px;">BUKTI KEGIATAN (DOKUMENTASI FOTO)</h3>
-                  <div class="photo-grid">
-                    ${allPhotos.slice(0, 6).map((photo, index) => `
-                      <div class="photo-item">
-                        <img src="${photo}" alt="Foto ${index + 1}" />
-                        <div class="photo-caption">Foto Kegiatan ${index + 1}</div>
-                      </div>
-                    `).join('')}
-                  </div>
-                </div>
-              ` : ''}
-
-              <div class="signature-section">
-                <p>Garut, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                <p>Pengawas Sekolah,</p>
-                <br><br><br>
-                <p><strong>${user.full_name || user.email}</strong></p>
-                <p>NIP. ${user.nip || '-'}</p>
-              </div>
-              
-              <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #666;">
-                <p>designed by @w.yogaswara ps smk kcdxi 2025</p>
-              </div>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
+      if (tableRows === '') {
+        tableRows = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#666;">Tidak ada data kegiatan pada periode ini</td></tr>`;
       }
 
-      toast.success("Laporan berhasil dibuat!");
+      // Build photo section
+      const photoSection = allPhotos.length > 0 ? `
+        <div class="section">
+          <h3 style="color:#007bff;margin-bottom:15px;">BUKTI KEGIATAN (DOKUMENTASI FOTO)</h3>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+            ${allPhotos.map((photo, i) => `
+              <div style="text-align:center;">
+                <img src="${photo}" alt="Foto ${i+1}" style="max-width:100%;max-height:120px;border:1px solid #ddd;border-radius:5px;" />
+                <div style="font-size:10px;color:#666;margin-top:4px;">Foto ${i+1}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : '';
+
+      const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Laporan - ${periodText}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; font-size: 12px; color: #333; }
+    .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #007bff; padding-bottom: 15px; }
+    .section { margin-bottom: 20px; }
+    .blue-line { height: 2px; background: #007bff; margin: 15px 0; }
+    .identity-table td { padding: 5px 8px; vertical-align: top; }
+    .stats-box { background: #f0f7ff; border: 2px solid #007bff; border-radius: 8px; padding: 15px; text-align: center; display: inline-block; margin: 10px auto; }
+    .stats-item { display: inline-block; margin: 5px 15px; text-align: center; }
+    .stats-number { font-size: 2em; font-weight: bold; color: #007bff; display: block; }
+    .stats-label { font-size: 0.85em; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; font-size: 11px; vertical-align: top; }
+    th { background: #007bff; color: white; text-align: center; }
+    .signature { margin-top: 40px; text-align: right; }
+    .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; }
+    @media print { body { margin: 10px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 style="margin:0;font-size:16px;color:#007bff;">LAPORAN AKTIVITAS PENGAWAS SEKOLAH</h1>
+    <h2 style="margin:4px 0;font-size:14px;">Dinas Pendidikan Provinsi Jawa Barat</h2>
+    <h3 style="margin:4px 0;font-size:13px;">Cabang Dinas Pendidikan Wilayah XI</h3>
+    <p style="margin:8px 0;font-size:13px;"><strong>Periode: ${periodText}</strong></p>
+  </div>
+
+  <div class="section">
+    <h3 style="color:#007bff;margin-bottom:10px;">IDENTITAS PENGAWAS</h3>
+    <table class="identity-table" style="border:none;">
+      <tr><td style="width:180px;border:none;"><strong>Nama Pengawas</strong></td><td style="border:none;">: ${esc(user.full_name || user.email)}</td></tr>
+      <tr><td style="border:none;"><strong>NIP</strong></td><td style="border:none;">: ${esc(user.nip)}</td></tr>
+      <tr><td style="border:none;"><strong>Pangkat/Golongan</strong></td><td style="border:none;">: ${esc(user.pangkat)}</td></tr>
+      <tr><td style="border:none;"><strong>Jabatan</strong></td><td style="border:none;">: ${esc(user.position || 'Pengawas Sekolah')}</td></tr>
+      <tr><td style="border:none;"><strong>Unit Kerja</strong></td><td style="border:none;">: ${esc(user.unit_kerja || 'Dinas Pendidikan Provinsi Jawa Barat')}</td></tr>
+    </table>
+  </div>
+
+  <div class="blue-line"></div>
+
+  <div class="section" style="text-align:center;">
+    <h3 style="color:#007bff;margin-bottom:10px;">STATISTIK KEGIATAN</h3>
+    <div class="stats-box">
+      <div class="stats-item"><span class="stats-number">${filteredActivities.length}</span><div class="stats-label">Aktivitas</div></div>
+      <div class="stats-item"><span class="stats-number">${filteredSupervisions.length}</span><div class="stats-label">Supervisi</div></div>
+      <div class="stats-item"><span class="stats-number">${filteredTasks.length}</span><div class="stats-label">Tugas Tambahan</div></div>
+      <div class="stats-item"><span class="stats-number">${filteredActivities.length + filteredSupervisions.length + filteredTasks.length}</span><div class="stats-label">Total Kegiatan</div></div>
+    </div>
+  </div>
+
+  <div class="blue-line"></div>
+
+  <div class="section">
+    <h3 style="color:#007bff;margin-bottom:10px;">RINGKASAN KEGIATAN</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:4%">No</th>
+          <th style="width:11%">Tanggal</th>
+          <th style="width:24%">Nama Kegiatan</th>
+          <th style="width:14%">Kategori</th>
+          <th style="width:20%">Sekolah/Tempat</th>
+          <th style="width:27%">Catatan</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
+
+  ${photoSection}
+
+  <div class="signature">
+    <p>Garut, ${today}</p>
+    <p>Pengawas Sekolah,</p>
+    <br><br><br>
+    <p><strong>${esc(user.full_name || user.email)}</strong></p>
+    <p>NIP. ${esc(user.nip)}</p>
+  </div>
+
+  <div class="footer">
+    <p>designed by @w.yogaswara ps smk kcdxi 2025</p>
+  </div>
+</body>
+</html>`;
+
+      // Buat blob dan buka di tab baru (lebih reliable dari window.open langsung)
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+
+      if (!printWindow) {
+        // Jika popup diblokir, download sebagai file HTML
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Laporan-${periodText.replace(/\s/g, '-')}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success("Laporan berhasil diunduh! Buka file HTML untuk mencetak.");
+      } else {
+        // Tunggu sebentar lalu print
+        setTimeout(() => {
+          printWindow.print();
+          URL.revokeObjectURL(url);
+        }, 1000);
+        toast.success("Laporan berhasil dibuat!");
+      }
+
     } catch (error: any) {
       console.error("Generate report error:", error);
-      toast.error("Gagal membuat laporan");
+      toast.error(`Gagal membuat laporan: ${error.message || 'Terjadi kesalahan'}`);
     }
   };
 
